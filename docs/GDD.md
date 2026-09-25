@@ -295,7 +295,7 @@ Kecepatan jalan pemain (80) lebih lambat dari Pendengar yang sedang memburu (95)
 - **Saat diamati**, yaitu terkena senter atau tertangkap sonar dalam 0,5 detik terakhir, ia berhenti bergerak. Menatapnya menaikkan stres.
 - **Kalau disorot senter terus selama 2 detik**, ia memudar dan pergi selama 25–40 detik. Setelah itu ia muncul lagi di belakang pemain dengan jarak nyaman kembali ke 260 px.
 - Kecepatannya 45 px/dtk, lebih lambat dari jalan. Tanpa baterai, pemain masih bisa menjauh asal terus bergerak.
-- **Tanda peringatan:** dalam jarak 110 px terdengar napas pelan, dan detak jantung menguat.
+- **Tanda peringatan:** selama ia ada, terdengar **detak kedua** dari arahnya (sampai 400 px): jantung yang bukan milik pemain, lebih lambat dan teredam. Setiap 6–12 detik terdengar juga klik senter mati dari arahnya (*klik… klik-klik*): ia pernah memegang senter yang sama, dan baterainya sudah habis. Dalam jarak 110 px terdengar juga napas pelan, dan detak jantung pemain menguat.
 - Menyentuh pemain berarti pemain kehilangan satu nyawa.
 - Mulai Lantai 4, ia melakukan ping peniru (§6.6).
 
@@ -352,6 +352,9 @@ Lantai ini berupa lorong panjang yang berkelok, tanpa monster, tanpa fragmen, da
 | Pengali gema palsu | ×0,5 | ×1,0 | ×1,5 |
 | Pengamat mulai muncul | Lantai 2 | Lantai 2 | Lantai 1 |
 | Pendengar tambahan | – | – | +1 di Lantai 3–5 |
+| Aura di sekitar pemain | 88 px | 44 px | 44 px |
+| Gema sonar memudar dalam | 4,5 dtk | 2,5 dtk | 2,5 dtk |
+| Ingatan sonar (dinding yang pernah terlihat) | ×3,4 lebih terang | biasa | biasa |
 
 ---
 
@@ -473,7 +476,9 @@ Semua suara dibuat dengan numpy saat game dimulai.
 | Langkah | Desis pendek. Saat lari lebih keras dan lebih rapat | Saat pemain bergerak |
 | Detak jantung | Dua dentum rendah (lub-dub) | Mono, saat bahaya di atas 0,2 |
 | Seretan Pendengar | Desis rendah yang bergelombang | Stereo, dalam jarak 250 px |
+| Detak kedua (Pengamat) | Detak jantung yang teredam, 46 bpm | Stereo, dari arah Pengamat, dalam jarak 400 px |
 | Napas Pengamat | Desis lembut yang naik-turun | Stereo, dalam jarak 110 px |
+| Senter mati (Pengamat) | *Klik… klik-klik*, seperti senter yang baterainya habis | Stereo, dari arah Pengamat, setiap 6–12 detik |
 | Dengung fragmen | Nada 220 + 330 Hz yang bergetar | Stereo, dalam jarak 400 px |
 | Dengung pintu | Nada sangat rendah | Setelah pintu terbuka |
 | Pintu terbuka | Dentuman berat, tapi pelan dan terdengar jauh | Stereo |

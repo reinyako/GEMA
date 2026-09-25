@@ -50,8 +50,31 @@ class Effects:
         level = min(VIGNETTE_LEVELS - 1, int(stress / 100.0 * VIGNETTE_LEVELS))
         screen.blit(self.vignettes[level], (0, 0))
 
-    def grain(self, screen, t):
-        screen.blit(self.grains[int(t * 12) % len(self.grains)], (0, 0))
+    def vignette_smooth(self, screen, stress):
+        """Seperti vignette(), tapi berpindah level dengan halus. Dipakai di layar menu.
+
+        Stres 100..200 menumpuk level paling gelap sekali lagi, sampai pinggiran hampir hitam.
+        """
+        pos = max(0.0, min(VIGNETTE_LEVELS - 1.0, stress / 100.0 * VIGNETTE_LEVELS))
+        lo = int(pos)
+        screen.blit(self.vignettes[lo], (0, 0))
+        layers = [(lo + 1, pos - lo), (VIGNETTE_LEVELS - 1, (stress - 100.0) / 100.0)]
+        for level, amount in layers:
+            if amount > 0 and level < VIGNETTE_LEVELS:
+                v = self.vignettes[level]
+                v.set_alpha(int(255 * min(1.0, amount)))
+                screen.blit(v, (0, 0))
+                v.set_alpha(255)
+
+    def grain(self, screen, t, amount=1.0):
+        """amount di atas 1 menambah lapisan grain kedua (maksimal 2)."""
+        frame = int(t * 12)
+        screen.blit(self.grains[frame % len(self.grains)], (0, 0))
+        if amount > 1.0:
+            extra = self.grains[(frame + 2) % len(self.grains)]
+            extra.set_alpha(int(255 * min(1.0, amount - 1.0)))
+            screen.blit(extra, (0, 0))
+            extra.set_alpha(255)
 
     def red_pulse(self, screen, amount):
         """Pinggiran layar berdenyut merah saat tertangkap."""

@@ -31,7 +31,7 @@ class FloorRenderer:
                 self._draw_tile(tx, ty)
         self.view = pygame.Surface((C.SCREEN_W, C.SCREEN_H))
         self.echo = pygame.Surface((C.SCREEN_W, C.SCREEN_H))
-        self.lighting = Lighting()
+        self.lighting = Lighting(floor.diff.aura_radius)
         self.red_glow = radial_gradient(46, (150, 26, 22), power=1.4)
         self.pale_glow = radial_gradient(46, (120, 118, 110), power=1.4)
 
@@ -62,7 +62,7 @@ class FloorRenderer:
         self.refresh()
         camx, camy = int(camx), int(camy)
         v = self.view
-        v.fill((0, 0, 0))
+        v.fill(C.COL_WALL)  # di luar labirin dianggap dinding, supaya aura tidak terpotong kotak
         v.blit(self.world, (-camx, -camy))
         self._items(v, camx, camy, t)
         self._monsters(v, camx, camy)
@@ -131,7 +131,7 @@ class FloorRenderer:
     def _echoes(self, e, camx, camy, t):
         f = self.floor
         s = f.sonar
-        bright, fade = C.ECHO_BRIGHT_TIME, C.ECHO_FADE_TIME
+        bright, fade = C.ECHO_BRIGHT_TIME, s.echo_fade
         w, h = C.SCREEN_W, C.SCREEN_H
         for x, y, age in s.points:
             sx, sy = x - camx, y - camy

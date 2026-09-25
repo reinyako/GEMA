@@ -56,7 +56,8 @@ class Floor:
         self.shadows = []
 
         self.noise = NoiseBus()
-        self.sonar = Sonar(self.maze, self.rng)
+        memory = tuple(min(255, int(c * self.diff.memory_glow)) for c in C.COL_MEMORY)
+        self.sonar = Sonar(self.maze, self.rng, memory, self.diff.echo_fade)
         self.flashlight = Flashlight(run.battery)
         self.stress = Stress(run.stress_floor())
         self.director = Director(rules, self.diff, self.rng)

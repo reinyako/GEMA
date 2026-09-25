@@ -9,6 +9,7 @@ POSITIONAL_RANGE = {
     "grind": 900.0,
     "whisper": 400.0,
     "exhale": 500.0,
+    "dead_flashlight": 500.0,
 }
 
 
@@ -16,11 +17,13 @@ class Soundscape:
     def __init__(self, audio):
         self.audio = audio
         self.heart_timer = 0.0
+        self.other_heart_timer = 0.0
         self.drone_level = 0.0
 
     def silence(self):
         self.drone_level = 0.0
         self.heart_timer = 0.0
+        self.other_heart_timer = 0.0
         self.audio.stop_all()
 
     def update(self, dt, floor):
@@ -74,8 +77,14 @@ class Soundscape:
         w = floor.watcher
         if w is not None and w.present:
             a.set_loop("breath", "breath", *spatial(w.x, w.y, px, py, C.WATCHER_BREATH_RANGE, 1.0))
+            # detak kedua: jantung yang bukan milik pemain, datang dari arah Pengamat
+            self.other_heart_timer -= dt
+            if self.other_heart_timer <= 0:
+                self.other_heart_timer = 60.0 / C.WATCHER_HEART_BPM
+                a.play_at("heart_other", w.x, w.y, px, py, C.WATCHER_HEART_RANGE)
         else:
             a.stop_loop("breath")
+            self.other_heart_timer = 60.0 / C.WATCHER_HEART_BPM
 
         danger = floor.danger()
         if danger > C.HEART_THRESHOLD and not floor.rules.final:

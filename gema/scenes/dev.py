@@ -15,9 +15,9 @@ KEYS_HELP = [
 
 
 class DevMenu:
-    def __init__(self, dev, y=150):
+    def __init__(self, dev, audio=None, y=150):
         self.dev = dev
-        self.menu = Menu(self._labels(), y=y, spacing=40, size=22)
+        self.menu = Menu(self._labels(), y=y, spacing=40, size=22, audio=audio)
 
     def _labels(self):
         marks = [f"[{'x' if getattr(self.dev, key) else ' '}] {label}" for key, label, _ in OPTIONS]
@@ -49,7 +49,7 @@ class DevScene:
     def __init__(self, app):
         self.app = app
         self.t = 0.0
-        self.menu = DevMenu(app.dev)
+        self.menu = DevMenu(app.dev, app.audio)
 
     def enter(self):
         pygame.mouse.set_visible(True)

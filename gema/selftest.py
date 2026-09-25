@@ -51,6 +51,6 @@ def _play(args):
         app.step(1 / 30, [])
         if isinstance(app.scene, PlayScene):
             played += 1
-    ok = played > 30 * 5 and bool(app.audio.sounds)
-    pygame.quit()
-    return ok
+    # pygame.quit() sengaja tidak dipanggil: font yang sudah di-cache jadi rusak kalau pygame
+    # dibuka lagi di proses yang sama (misalnya di test). Pygame ditutup otomatis saat keluar.
+    return played > 30 * 5 and bool(app.audio.sounds)

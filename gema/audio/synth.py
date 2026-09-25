@@ -35,6 +35,12 @@ def _attack(t, seconds):
     return np.minimum(t / seconds, 1.0)
 
 
+def _lowpass(x, sr, cutoff):
+    spec = np.fft.rfft(x)
+    f = np.fft.rfftfreq(len(x), 1.0 / sr)
+    return np.fft.irfft(spec / (1.0 + (f / cutoff) ** 4), len(x))
+
+
 def drone(sr, rng, detuned=False, dur=8.0):
     t = _t(sr, dur)
     lfo = 0.75 + 0.25 * np.sin(2 * np.pi * 0.25 * t)
@@ -88,6 +94,11 @@ def heartbeat(sr):
     return _norm(thump(0.0, 58, 1.0) + thump(0.21, 47, 0.75), 0.95)
 
 
+def other_heart(sr):
+    """Detak kedua milik Pengamat: jantung yang sama dengan pemain, tapi teredam."""
+    return _lowpass(heartbeat(sr), sr, 180.0)
+
+
 def drag(sr, rng, dur=3.0):
     t = _t(sr, dur)
     k = 1.0 / dur
@@ -138,6 +149,21 @@ def click(sr, rng, low=False):
     n = rng.standard_normal(len(t)) * np.exp(-t * 400)
     tone = np.sin(2 * np.pi * (600 if low else 2000) * t) * np.exp(-t * (150 if low else 300))
     return _norm(n * 0.5 + tone, 0.8)
+
+
+def dead_flashlight(sr, rng):
+    """Seseorang mencoba menyalakan senter yang baterainya habis: klik... klik-klik."""
+    one = click(sr, rng, low=True)
+    room = np.zeros(int(0.25 * sr))
+    room[: len(one)] = one
+    for delay, gain in ((0.07, 0.3), (0.15, 0.12)):
+        k = int(delay * sr)
+        room[k:k + len(one)] += one * gain
+    out = np.zeros(int(1.3 * sr))
+    for t0, amp in ((0.0, 1.0), (0.72, 0.85), (0.95, 1.0)):
+        k = int(t0 * sr)
+        out[k:k + len(room)] += room[: len(out) - k] * amp
+    return _norm(out, 0.8)
 
 
 def battery(sr, rng):
@@ -206,4 +232,7 @@ def build_all(sr, seed=7):
         "whisper": [whisper(sr, rng) for _ in range(3)],
         "impact": impact(sr, rng),
         "exhale": exhale(sr, rng),
+        # suara baru ditaruh di akhir supaya suara lama tetap sama (rng dipakai berurutan)
+        "heart_other": other_heart(sr),
+        "dead_flashlight": dead_flashlight(sr, rng),
     }

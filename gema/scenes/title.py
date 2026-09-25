@@ -8,11 +8,17 @@ import pygame
 from .. import config as C
 from .. import notes
 from ..render.draw import scale
+from ..render.lighting import radial_gradient
 from ..render.text import draw_center, font
 from .menu import Menu
 
 RING_PERIOD = 4.0
 RING_SPEED = 380.0
+
+# Layar pilih kesulitan ikut gelap sesuai pilihan yang disorot: Redup, Gelap, Pekat.
+DARKNESS = (0.0, 0.45, 1.0)
+DARKNESS_EASE = 2.5     # seberapa cepat suasana berpindah saat pilihan berganti
+LIGHT_STEPS = 12        # banyaknya tingkat terang kolam cahaya yang disimpan
 
 
 class TitleScene:
@@ -23,7 +29,7 @@ class TitleScene:
         self.origin = (C.SCREEN_W / 2, 175)
         self.points = self._letter_points("GEMA")
         items = [notes.start_label(app.save)] + (["Mode dev"] if app.dev.enabled else []) + ["Keluar"]
-        self.menu = Menu(items, y=330 if len(items) == 2 else 316)
+        self.menu = Menu(items, y=330 if len(items) == 2 else 316, audio=app.audio)
 
     def _letter_points(self, text):
         img = font(118, bold=True).render(text, True, (255, 255, 255))
@@ -102,6 +108,14 @@ class TitleScene:
 
 
 class DifficultyScene:
+    """Pilih tingkat kesulitan. Makin berat pilihan yang disorot, makin gelap layarnya.
+
+    Redup: pilihan disorot cahaya hangat seperti senter, dan ada ping sonar yang tenang.
+    Gelap: cahayanya mengecil, detak jantung mulai terdengar.
+    Pekat: tanpa cahaya. Pilihan lain tenggelam, pinggiran berdenyut merah, dan tulisannya
+    kedip seperti senter yang baterainya hampir habis.
+    """
+
     def __init__(self, app):
         self.app = app
         self.t = 0.0
@@ -113,7 +127,16 @@ class DifficultyScene:
             extra = f"   (terdalam: Lantai {best})" if 0 < best <= C.FLOOR_COUNT else ""
             subs.append(d.desc + extra)
         self.menu = Menu([d.name for d in C.DIFFICULTIES], y=170, spacing=70, size=26,
-                         selected=selected, subtitles=subs)
+                         selected=selected, subtitles=subs, audio=app.audio)
+        self.dark = DARKNESS[selected]
+        self.ring_t = RING_PERIOD - 0.8
+        self.heart_timer = 0.0
+        self.pulse = 0.0
+        self.flicker_off = False
+        self.flicker_timer = 0.0
+        self.rng = random.Random()
+        self.light_y = self.menu.y + self.menu.spacing * selected + 30
+        self._pools = {}
 
     def enter(self):
         pygame.mouse.set_visible(True)
@@ -126,13 +149,85 @@ class DifficultyScene:
         if choice is not None:
             self.app.start_run(C.DIFFICULTIES[choice])
 
+    def _calm(self):
+        return max(0.0, 1.0 - self.dark / DARKNESS[1])
+
+    def _pool(self, light):
+        """Kolam cahaya di bawah pilihan yang disorot. Makin gelap, makin kecil dan redup."""
+        step = round(light * LIGHT_STEPS)
+        if step <= 0:
+            return None
+        pool = self._pools.get(step)
+        if pool is None:
+            k = step / LIGHT_STEPS
+            r = int(140 + 180 * k)
+            glow = radial_gradient(r, scale(C.COL_AURA, 0.32 * k), power=1.6)
+            pool = pygame.transform.smoothscale(glow, (int(r * 3.2), int(r * 1.3)))
+            self._pools[step] = pool
+        return pool
+
     def update(self, dt):
         self.t += dt
+        self.dark += (DARKNESS[self.menu.selected] - self.dark) * min(1.0, dt * DARKNESS_EASE)
+
+        # Redup: ping sonar pelan, seperti di layar judul
+        self.ring_t += dt
+        if self.ring_t >= RING_PERIOD:
+            self.ring_t -= RING_PERIOD
+            if self._calm() > 0.5:
+                self.app.audio.play("title_ping")
+
+        # Gelap dan Pekat: detak jantung, makin cepat dan makin jelas
+        beat = max(0.0, (self.dark - 0.2) / 0.8)
+        if beat > 0:
+            self.heart_timer -= dt
+            if self.heart_timer <= 0:
+                self.heart_timer = 60.0 / (52 + 68 * beat)
+                self.app.audio.beat(0.25 + 0.45 * beat)
+                self.pulse = 1.0
+        else:
+            self.heart_timer = min(self.heart_timer, 0.3)
+        self.pulse = max(0.0, self.pulse - dt * 2.5)
+
+        # cahaya pindah pelan ke pilihan yang disorot, seperti senter yang diarahkan
+        if self.menu.rects:
+            target = self.menu.rects[self.menu.selected].centery + 12
+            self.light_y += (target - self.light_y) * min(1.0, dt * 8.0)
+
+        # Pekat: tulisannya kedip seperti senter yang baterainya hampir habis
+        if DARKNESS[self.menu.selected] >= 1.0:
+            self.flicker_timer -= dt
+            if self.flicker_timer <= 0:
+                self.flicker_off = not self.flicker_off
+                self.flicker_timer = self.rng.uniform(0.04, 0.12) if self.flicker_off else self.rng.uniform(0.2, 1.3)
+        else:
+            self.flicker_off = False
 
     def draw(self, screen):
         screen.fill(C.COL_BG)
-        draw_center(screen, "Seberapa gelap?", font(18), C.COL_TEXT_DIM, C.SCREEN_W / 2, 90)
-        self.menu.draw(screen)
+        pool = self._pool((1.0 - self.dark) ** 1.5)
+        if pool is not None:
+            screen.blit(pool, pool.get_rect(center=(C.SCREEN_W // 2, int(self.light_y))),
+                        special_flags=pygame.BLEND_ADD)
+        radius = self.ring_t * RING_SPEED
+        calm = self._calm()
+        if calm > 0 and 2 < radius < 700:
+            pygame.draw.circle(screen, scale(C.COL_SONAR, 0.22 * calm * (1 - radius / 700)),
+                               (C.SCREEN_W // 2, 98), int(radius), 1)
+        draw_center(screen, "Seberapa gelap?", font(18), scale(C.COL_TEXT_DIM, 1 - 0.4 * self.dark),
+                    C.SCREEN_W / 2, 90)
+        # pilihan lain ikut tenggelam saat yang disorot makin gelap
+        others = 1.0 - 0.8 * self.dark ** 1.5
+        dims = []
+        for i in range(len(self.menu.items)):
+            if i == self.menu.selected:
+                dims.append(0.2 if self.flicker_off else 1.0)
+            else:
+                dims.append(others)
+        self.menu.draw(screen, item_alpha=dims)
         draw_center(screen, "Esc: kembali", font(13), (70, 67, 63), C.SCREEN_W / 2, C.SCREEN_H - 40)
-        self.app.effects.grain(screen, self.t)
-        self.app.effects.vignette(screen, 0)
+        fx = self.app.effects
+        heavy = max(0.0, (self.dark - 0.6) / 0.4)   # hanya terasa di Pekat
+        fx.grain(screen, self.t, 1.0 + 0.8 * heavy)
+        fx.vignette_smooth(screen, 200 * self.dark ** 2)
+        fx.red_pulse(screen, self.pulse * 0.6 * heavy)

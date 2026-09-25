@@ -18,13 +18,14 @@ def radial_gradient(radius, color, power=1.0):
 
 
 class Lighting:
-    def __init__(self):
+    def __init__(self, aura_radius=C.AURA_RADIUS):
         self.light = pygame.Surface((C.SCREEN_W, C.SCREEN_H))
         self.rmax = int(C.LIGHT_RANGE_MAX) + 4
         self.cone = pygame.Surface((self.rmax * 2, self.rmax * 2))
         self._grad_full = radial_gradient(self.rmax, (255, 255, 255), power=0.75)
         self._grad_cache = {}
-        self.aura = radial_gradient(C.AURA_RADIUS, C.COL_AURA, power=1.3)
+        self.aura_r = aura_radius
+        self.aura = radial_gradient(aura_radius, C.COL_AURA, power=1.3)
         self.exit_glow = radial_gradient(56, (130, 112, 80), power=1.6)
 
     def _gradient(self, r):
@@ -51,7 +52,7 @@ class Lighting:
             cone.blit(grad, (rm - r, rm - r), special_flags=pygame.BLEND_MULT)
             light.blit(cone, (ox - camx - rm, oy - camy - rm), special_flags=pygame.BLEND_ADD)
         p = floor.player
-        a = C.AURA_RADIUS
+        a = self.aura_r
         light.blit(self.aura, (p.x - camx - a, p.y - camy - a), special_flags=pygame.BLEND_ADD)
         if floor.exit.open:
             e = floor.exit

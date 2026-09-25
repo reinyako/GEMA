@@ -9,7 +9,7 @@ Kamu terbangun di labirin gelap dengan senter tua dan alat sonar. Sonar memperli
 
 ## Unduh (Windows)
 
-Ambil `GEMA-v1.0.0-windows.zip` dari halaman [Releases](https://github.com/reinyako/GEMA/releases), ekstrak, lalu jalankan `GEMA.exe`. Tidak perlu memasang Python.
+Ambil file `GEMA-v<versi>-windows.zip` terbaru dari halaman [Releases](https://github.com/reinyako/GEMA/releases), ekstrak, lalu jalankan `GEMA.exe`. Tidak perlu memasang Python.
 
 > `GEMA.exe` tidak ditandatangani secara digital, jadi Windows SmartScreen bisa menampilkan "Windows protected your PC". Klik **More info**, lalu **Run anyway**.
 
@@ -56,7 +56,7 @@ python main.py
 | `python main.py --seed 123` | Labirin yang sama setiap kali (sertakan seed saat melaporkan bug) |
 | `python main.py --difficulty pekat` | Pilihan awal di layar kesulitan |
 | `python main.py --mute` | Tanpa suara |
-| `F3` saat bermain | Overlay debug: peta, status monster, stres, baterai, FPS |
+| `python main.py --dev` | Mode dev untuk testing: menu kebal, sonar tanpa jeda, dan senter tanpa batas. Saat bermain: `F3` overlay debug (peta, status monster, stres, baterai, FPS), `F5` ambil semua fragmen, `F6` pindah ke pintu keluar |
 
 Opsi-opsi ini bisa digabung, misalnya `python main.py --dev --floor 5`.
 

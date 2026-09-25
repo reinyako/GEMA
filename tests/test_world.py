@@ -157,6 +157,40 @@ def test_floor_one_has_no_perception_tricks():
     assert not f.director.drop_echo(f, "listener", 400)
 
 
+def test_watcher_clicks_a_dead_flashlight_now_and_then():
+    f = make_floor(number=2)
+    w = f.watcher
+    w.timer = 0
+    f.update(1 / 60, IDLE)
+    assert w.present
+    clicks = 0
+    for _ in range(60 * 25):
+        f.sfx.clear()
+        w.update(1 / 60, f)
+        clicks += sum(1 for s in f.sfx if s[0] == "dead_flashlight")
+    lo, hi = C.WATCHER_CLICK_INTERVAL
+    assert 25 // hi <= clicks <= 25 // lo + 1
+
+
+def test_redup_maze_is_easier_to_see():
+    easy, normal = make_floor(difficulty=C.REDUP), make_floor(difficulty=C.GELAP)
+    assert easy.sonar.echo_fade > normal.sonar.echo_fade
+    assert sum(easy.sonar.memory_color) > sum(normal.sonar.memory_color)
+    assert C.REDUP.aura_radius > C.GELAP.aura_radius == C.PEKAT.aura_radius
+
+
+def test_every_sound_has_a_volume():
+    import numpy as np
+
+    from gema.audio.synth import build_all
+
+    sounds = build_all(8000)
+    assert {"heart_other", "dead_flashlight"} <= set(sounds)
+    assert set(sounds) <= set(C.VOLUME)
+    for name in ("heart_other", "dead_flashlight"):
+        assert 0 < np.max(np.abs(sounds[name])) <= 1.0
+
+
 def test_wall_shift_keeps_maze_connected():
     f = make_floor(number=3)
     shifted = 0

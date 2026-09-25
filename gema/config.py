@@ -96,6 +96,9 @@ WATCHER_AWAY_TIME = (25.0, 40.0)
 WATCHER_SPAWN_DELAY = (20.0, 30.0)
 WATCHER_SPAWN_TILES = (8, 14)
 WATCHER_BREATH_RANGE = 110.0
+WATCHER_HEART_RANGE = 400.0   # detak kedua terdengar dari sejauh ini, dari arah Pengamat
+WATCHER_HEART_BPM = 46.0      # lebih lambat dari jantung pemain
+WATCHER_CLICK_INTERVAL = (6.0, 12.0)  # sesekali terdengar klik senter mati dari arah Pengamat
 WATCHER_SONAR_OBSERVE = 0.5
 
 # --- Stres ---------------------------------------------------------------
@@ -176,6 +179,8 @@ VOLUME = {
     "impact": 0.5,
     "exhale": 0.35,
     "title_ping": 0.2,
+    "heart_other": 0.48,
+    "dead_flashlight": 0.6,
 }
 
 
@@ -194,12 +199,16 @@ class Difficulty:
     false_echo_mult: float
     watcher_from_floor: int
     extra_listener_floors: tuple = ()
+    aura_radius: int = AURA_RADIUS   # cahaya redup di sekitar pemain
+    memory_glow: float = 1.0         # terangnya ingatan sonar (dinding yang pernah terlihat)
+    echo_fade: float = ECHO_FADE_TIME  # berapa lama gema sonar memudar
 
 
 REDUP = Difficulty(
-    "redup", "Redup", "3 nyawa. Mereka lebih lambat, baterai lebih awet.",
+    "redup", "Redup", "3 nyawa. Tidak segelap itu. Mereka lebih lambat, baterai lebih awet.",
     lives=3, listener_speed=0.8, listener_hearing=0.85, battery_drain=5.0,
     batteries_per_floor=4, sonar_cooldown=2.0, false_echo_mult=0.5, watcher_from_floor=2,
+    aura_radius=88, memory_glow=3.4, echo_fade=4.5,
 )
 GELAP = Difficulty(
     "gelap", "Gelap", "2 nyawa. Seperti yang dimaksudkan.",

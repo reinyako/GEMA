@@ -42,8 +42,8 @@ class PlayScene:
         self.showing_notes = False
         self.showing_dev = False
         items = ["Lanjut", "Catatan"] + (["Mode dev"] if app.dev.enabled else []) + ["Kembali ke judul"]
-        self.pause_menu = Menu(items, y=190)
-        self.dev_menu = DevMenu(app.dev)
+        self.pause_menu = Menu(items, y=190, audio=app.audio)
+        self.dev_menu = DevMenu(app.dev, app.audio)
         self.note = None
         self.hint = 9.0 if run.floor == 1 else 0.0
         self.debug = False
@@ -80,7 +80,8 @@ class PlayScene:
             if ev.key == pygame.K_ESCAPE and self.state == PLAYING:
                 self.set_paused(True)
                 return
-            if ev.key == pygame.K_F3:
+            # overlay debug memperlihatkan peta, monster, dan angka: hanya untuk mode dev
+            if ev.key == pygame.K_F3 and self.app.dev.enabled:
                 self.debug = not self.debug
             if self.app.dev.enabled and self.state == PLAYING:
                 if ev.key == pygame.K_F5:
@@ -96,7 +97,10 @@ class PlayScene:
             return
         if self.showing_notes:
             done = ev.type == pygame.KEYDOWN and ev.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE)
-            if done or (ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1):
+            clicked = ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1
+            if done or clicked:
+                if clicked or ev.key != pygame.K_ESCAPE:
+                    self.app.audio.ui("click")
                 self.showing_notes = False
             return
         if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:

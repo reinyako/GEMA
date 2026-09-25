@@ -36,9 +36,11 @@ class Ring:
 
 
 class Sonar:
-    def __init__(self, maze, rng):
+    def __init__(self, maze, rng, memory_color=C.COL_MEMORY, echo_fade=C.ECHO_FADE_TIME):
         self.maze = maze
         self.rng = rng
+        self.memory_color = memory_color
+        self.echo_fade = echo_fade
         self.memory = pygame.Surface((maze.w * C.TILE, maze.h * C.TILE))
         self.memory.fill((0, 0, 0))
         self.points = []   # [x, y, umur]
@@ -136,12 +138,12 @@ class Sonar:
             r.radius += grow
         self.rings = [r for r in self.rings if r.radius < C.SONAR_RANGE]
 
-        life = C.ECHO_BRIGHT_TIME + C.ECHO_FADE_TIME
+        life = C.ECHO_BRIGHT_TIME + self.echo_fade
         keep = []
         for pt in self.points:
             pt[2] += dt
             if pt[2] >= life:
-                self.memory.fill(C.COL_MEMORY, (int(pt[0]) - 1, int(pt[1]) - 1, 2, 2))
+                self.memory.fill(self.memory_color, (int(pt[0]) - 1, int(pt[1]) - 1, 2, 2))
             else:
                 keep.append(pt)
         self.points = keep

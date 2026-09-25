@@ -11,7 +11,7 @@ from gema.scenes.dev import DevScene
 from gema.scenes.ending import EndingScene
 from gema.scenes.interlude import InterludeScene
 from gema.scenes.play import DYING, PlayScene
-from gema.scenes.title import TitleScene
+from gema.scenes.title import DifficultyScene, TitleScene
 
 
 def key(k):
@@ -116,7 +116,66 @@ def test_dev_menu_hidden_without_flag():
     assert "Mode dev" not in app.scene.menu.items
 
 
+def test_menu_choices_click_like_a_flashlight():
+    app = App(parse_args([]))
+    clicks = []
+    real_ui = app.audio.ui
+    app.audio.ui = lambda name="click": (clicks.append(name), real_ui(name))
+    app.step(1 / 30, [key(pygame.K_RETURN)])  # Mulai
+    app.step(1 / 30, [key(pygame.K_RETURN)])  # Gelap
+    assert clicks == ["click", "click"]
+    while not isinstance(app.scene, PlayScene):
+        app.step(1 / 30, [])
+    app.step(1 / 30, [key(pygame.K_ESCAPE)])                        # jeda: tidak berbunyi
+    app.step(1 / 30, [key(pygame.K_DOWN), key(pygame.K_RETURN)])   # Catatan
+    app.step(1 / 30, [key(pygame.K_RETURN)])                        # tutup catatan
+    assert clicks == ["click"] * 4
+
+
+def test_stop_all_keeps_the_menu_click():
+    from gema.audio.manager import LOOP_SLOTS
+
+    app = App(parse_args([]))
+    audio = app.audio
+    assert audio.enabled
+    audio.ui("heart")      # suara panjang, supaya pasti masih berbunyi saat dicek
+    audio.play("heart")
+    audio.stop_all()
+    ui = LOOP_SLOTS.index("ui")
+    assert pygame.mixer.Channel(ui).get_busy()
+    assert not any(pygame.mixer.Channel(i).get_busy()
+                   for i in range(pygame.mixer.get_num_channels()) if i != ui)
+
+
+def test_debug_overlay_only_in_dev_mode():
+    for flags, allowed in ((["--mute"], False), (["--mute", "--dev"], True)):
+        app = App(parse_args(flags))
+        start(app)
+        while not isinstance(app.scene, PlayScene):
+            app.step(1 / 30, [])
+        app.step(1 / 30, [key(pygame.K_F3)])
+        assert app.scene.debug is allowed
+
+
 def test_selftest_used_by_exe_build_passes():
     from gema import selftest
 
     assert selftest.run(parse_args(["--selftest"])) == 0
+
+
+def test_difficulty_screen_darkens_with_selection():
+    app = App(parse_args([]))
+    app.step(1 / 30, [key(pygame.K_RETURN)])  # Mulai
+    scene = app.scene
+    assert isinstance(scene, DifficultyScene)
+    app.step(1 / 30, [key(pygame.K_DOWN)])  # Gelap -> Pekat
+    for _ in range(90):
+        app.step(1 / 30, [])
+    assert scene.dark > 0.9
+    app.step(1 / 30, [key(pygame.K_UP)])
+    app.step(1 / 30, [key(pygame.K_UP)])  # Redup
+    for _ in range(90):
+        app.step(1 / 30, [])
+    assert scene.dark < 0.1 and not scene.flicker_off
+    # vignette yang dipakai di dalam game tidak boleh ikut jadi transparan
+    assert all(v.get_alpha() == 255 for v in app.effects.vignettes)

@@ -11,7 +11,7 @@ from . import synth
 
 LOOP_SLOTS = (
     "drone_a", "drone_b", "heart", "frag0", "frag1", "frag2", "exit",
-    "lis0", "lis1", "lis2", "lis3", "lis4", "lis5", "breath",
+    "lis0", "lis1", "lis2", "lis3", "lis4", "lis5", "breath", "ui",
 )
 
 
@@ -95,6 +95,16 @@ class Audio:
         channel.play(sound)
         channel.set_volume(left * base, right * base)
 
+    def ui(self, name="click"):
+        """Suara menu. Punya channel sendiri, jadi tidak terpotong oleh stop_all() atau jeda."""
+        if not self.enabled:
+            return
+        ch = pygame.mixer.Channel(LOOP_SLOTS.index("ui"))
+        ch.play(self.sounds[name])
+        ch.unpause()
+        v = C.VOLUME.get(name, 0.3)
+        ch.set_volume(v, v)
+
     def play_at(self, name, x, y, lx, ly, max_dist=700.0):
         left, right = spatial(x, y, lx, ly, max_dist, 1.0)
         if left + right > 0.01:
@@ -130,9 +140,13 @@ class Audio:
         self.set_loop(slot, "", 0.0)
 
     def stop_all(self):
+        """Menghentikan semua suara kecuali suara menu yang sedang berbunyi."""
         if not self.enabled:
             return
-        pygame.mixer.stop()
+        ui = LOOP_SLOTS.index("ui")
+        for i in range(pygame.mixer.get_num_channels()):
+            if i != ui:
+                pygame.mixer.Channel(i).stop()
         self._loops.clear()
 
     def pause(self):

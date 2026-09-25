@@ -25,6 +25,7 @@ class Watcher:
         self.path = []
         self.repath = 0.0
         self.sonar_seen_at = -99.0
+        self.click_timer = 0.0
 
     @property
     def present(self):
@@ -68,6 +69,7 @@ class Watcher:
         self.path = []
         self.repath = 0.0
         self.sonar_seen_at = -99.0
+        self.click_timer = self.rng.uniform(*C.WATCHER_CLICK_INTERVAL)
         return True
 
     def _remaining(self):
@@ -91,6 +93,11 @@ class Watcher:
 
         p = floor.player
         self.alpha = min(1.0, self.alpha + dt * 1.5)
+        # sesekali ia mencoba menyalakan senter yang baterainya sudah habis
+        self.click_timer -= dt
+        if self.click_timer <= 0:
+            self.click_timer = self.rng.uniform(*C.WATCHER_CLICK_INTERVAL)
+            floor.sfx.append(("dead_flashlight", self.x, self.y))
         self.aim = math.atan2(p.y - self.y, p.x - self.x)
         self.lit_now = floor.flashlight.lit(self.x, self.y, floor.maze, margin=C.PLAYER_RADIUS)
         self.observed = self.lit_now or (floor.time - self.sonar_seen_at) < C.WATCHER_SONAR_OBSERVE
