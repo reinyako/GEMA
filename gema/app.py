@@ -2,6 +2,7 @@
 
 import argparse
 import random
+import sys
 
 import pygame
 
@@ -10,6 +11,7 @@ from .audio.manager import Audio
 from .dev import DevSettings
 from .input import HumanController
 from .render.effects import Effects
+from .render.icon import draw_icon
 from .run import Run
 from .save import SaveData
 
@@ -23,6 +25,8 @@ def parse_args(argv=None):
     p.add_argument("--dev", "--debug", dest="dev", action="store_true",
                    help="mode dev: menu kebal/sonar tanpa jeda/senter tanpa batas, plus F5 dan F6")
     p.add_argument("--mute", action="store_true", help="main tanpa suara")
+    p.add_argument("--selftest", action="store_true",
+                   help="tes singkat tanpa layar lalu keluar (untuk memeriksa hasil build)")
     return p.parse_args(argv)
 
 
@@ -32,6 +36,7 @@ class App:
         pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.init()
         pygame.display.set_caption("GEMA")
+        pygame.display.set_icon(draw_icon(32))
         try:
             self.screen = pygame.display.set_mode((C.SCREEN_W, C.SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
         except pygame.error:
@@ -96,4 +101,9 @@ class App:
 
 
 def main(argv=None):
-    App(parse_args(argv)).run()
+    args = parse_args(argv)
+    if args.selftest:
+        from . import selftest
+
+        sys.exit(selftest.run(args))
+    App(args).run()

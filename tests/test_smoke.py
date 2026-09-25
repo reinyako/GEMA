@@ -114,3 +114,9 @@ def test_dev_menu_toggles_from_title_and_pause():
 def test_dev_menu_hidden_without_flag():
     app = App(parse_args(["--mute"]))
     assert "Mode dev" not in app.scene.menu.items
+
+
+def test_selftest_used_by_exe_build_passes():
+    from gema import selftest
+
+    assert selftest.run(parse_args(["--selftest"])) == 0

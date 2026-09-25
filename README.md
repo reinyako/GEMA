@@ -7,7 +7,13 @@ Game horor psikologis top-down yang dibuat dengan pygame. Di labirin yang gelap 
 
 Kamu terbangun di labirin gelap dengan senter tua dan alat sonar. Sonar memperlihatkan jalan, tapi makhluk di sana berburu dengan telinga. Kumpulkan tiga fragmen di setiap lantai, lalu temukan pintu keluar.
 
-## Cara pasang
+## Unduh (Windows)
+
+Ambil `GEMA-v1.0.0-windows.zip` dari halaman [Releases](https://github.com/reinyako/GEMA/releases), ekstrak, lalu jalankan `GEMA.exe`. Tidak perlu memasang Python.
+
+> `GEMA.exe` tidak ditandatangani secara digital, jadi Windows SmartScreen bisa menampilkan "Windows protected your PC". Klik **More info**, lalu **Run anyway**.
+
+## Cara pasang (dari kode)
 
 Butuh **Python 3.10 atau lebih baru**.
 
@@ -70,6 +76,19 @@ Untuk screenshot tanpa layar (berguna saat menyetel visual):
 ```bash
 python tools/snap.py --floor 3 --light --ping --near --stress 90 --out shots/contoh.png
 ```
+
+## Membuat GEMA.exe
+
+Di Windows:
+
+```bash
+pip install -r requirements-build.txt
+python tools/build_exe.py
+```
+
+Script ini membuat ikon, membungkus game dengan PyInstaller, menjalankan `GEMA.exe --selftest`, lalu membuat `dist/GEMA-v<versi>-windows.zip` yang siap diunggah ke Releases. Versinya diambil dari `gema/__init__.py`.
+
+Ikonnya juga digambar dengan kode ([`gema/render/icon.py`](gema/render/icon.py)), sama seperti visual lain di game ini.
 
 ## Dokumen
 
