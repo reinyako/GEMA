@@ -43,24 +43,6 @@ python main.py
 - Cahaya senter membuat mereka diam. Bukan pergi.
 - Baterai tidak terisi ulang saat pindah lantai.
 
-## Untuk playtest dan debug
-
-### Mode dev
-
-```bash
-python main.py --dev
-```
-
-Muncul menu **Mode dev** di layar judul dan di menu jeda (`Esc`). Pilihannya bisa dinyalakan atau dimatikan kapan saja, termasuk di tengah permainan:
-
-| Pilihan | Efek |
-|---|---|
-| Kebal | Tidak bisa mati. Kalau tersentuh monster, efek tertangkap (getar, merah, makhluknya terlihat) tetap muncul supaya bisa dites. |
-| Sonar tanpa jeda | Sonar bisa dipakai terus-menerus |
-| Senter tanpa batas | Baterai selalu penuh |
-
-Selama ada pilihan yang menyala, pojok kanan atas layar menampilkan tulisan kecil `DEV`, supaya kamu tidak lupa sedang main dalam mode dev. Di mode dev juga ada tombol `F5` (ambil semua fragmen lantai ini) dan `F6` (lompat ke pintu keluar).
-
 ### Opsi lain
 
 | Opsi | Kegunaan |
