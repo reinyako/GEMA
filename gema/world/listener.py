@@ -139,6 +139,8 @@ class Listener(Silhouette):
             if d <= n.radius * hearing and d < best:
                 heard, best = n, d
         if heard is not None:
+            if heard.source == "stone" and self.state == HUNT:
+                floor.run.distractions += 1
             if best <= C.LISTENER_HUNT_RANGE * hearing:
                 self.state = HUNT
             elif self.state != HUNT:

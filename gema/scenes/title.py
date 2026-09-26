@@ -6,6 +6,7 @@ import random
 import pygame
 
 from .. import config as C
+from .. import lang
 from .. import notes
 from ..render.draw import scale
 from ..render.lighting import radial_gradient
@@ -28,8 +29,16 @@ class TitleScene:
         self.ring_t = RING_PERIOD - 0.8
         self.origin = (C.SCREEN_W / 2, 175)
         self.points = self._letter_points("GEMA")
-        items = [notes.start_label(app.save)] + (["Mode dev"] if app.dev.enabled else []) + ["Keluar"]
-        self.menu = Menu(items, y=330 if len(items) == 2 else 316, audio=app.audio)
+        self.actions = ["start"] + (["dev"] if app.dev.enabled else []) + ["achievements", "settings", "quit"]
+        labels = {
+            "start": notes.start_label(app.save),
+            "dev": lang.t("menu_dev"),
+            "achievements": lang.t("menu_achievements"),
+            "settings": lang.t("menu_settings"),
+            "quit": lang.t("menu_quit"),
+        }
+        items = [labels[a] for a in self.actions]
+        self.menu = Menu(items, y=330 - 14 * (len(items) - 2), audio=app.audio)
 
     def _letter_points(self, text):
         img = font(118, bold=True).render(text, True, (255, 255, 255))
@@ -56,13 +65,21 @@ class TitleScene:
         choice = self.menu.handle_event(ev)
         if choice is None:
             return
-        label = self.menu.items[choice]
-        if label == "Keluar":
+        action = self.actions[choice]
+        if action == "quit":
             self.app.running = False
-        elif label == "Mode dev":
+        elif action == "dev":
             from .dev import DevScene
 
             self.app.switch(DevScene(self.app))
+        elif action == "achievements":
+            from .achievements import AchievementsScene
+
+            self.app.switch(AchievementsScene(self.app))
+        elif action == "settings":
+            from .settings import SettingsScene
+
+            self.app.switch(SettingsScene(self.app))
         else:
             self.app.switch(DifficultyScene(self.app))
 
@@ -88,7 +105,7 @@ class TitleScene:
                 (int(self.origin[0]), int(self.origin[1])), int(radius), 1,
             )
         self.menu.draw(screen)
-        draw_center(screen, "Gunakan earphone.", font(14), C.COL_TEXT_DIM, C.SCREEN_W / 2, C.SCREEN_H - 40)
+        draw_center(screen, lang.t("earphones"), font(14), C.COL_TEXT_DIM, C.SCREEN_W / 2, C.SCREEN_H - 40)
         self.app.effects.grain(screen, self.t)
         self.app.effects.vignette(screen, 0)
         self._draw_signature(screen, radius)
@@ -124,7 +141,12 @@ class DifficultyScene:
         subs = []
         for d in C.DIFFICULTIES:
             best = app.save.lantai_terbaik.get(d.key, 0)
-            extra = f"   (terdalam: Lantai {best})" if 0 < best <= C.FLOOR_COUNT else ""
+            if app.save.tamat.get(d.key, 0) > 0:
+                extra = lang.t("finished_mark")
+            elif 0 < best <= C.FLOOR_COUNT:
+                extra = lang.t("deepest", n=best)
+            else:
+                extra = ""
             subs.append(d.desc + extra)
         self.menu = Menu([d.name for d in C.DIFFICULTIES], y=170, spacing=70, size=26,
                          selected=selected, subtitles=subs, audio=app.audio)
@@ -214,7 +236,7 @@ class DifficultyScene:
         if calm > 0 and 2 < radius < 700:
             pygame.draw.circle(screen, scale(C.COL_SONAR, 0.22 * calm * (1 - radius / 700)),
                                (C.SCREEN_W // 2, 98), int(radius), 1)
-        draw_center(screen, "Seberapa gelap?", font(18), scale(C.COL_TEXT_DIM, 1 - 0.4 * self.dark),
+        draw_center(screen, lang.t("how_dark"), font(18), scale(C.COL_TEXT_DIM, 1 - 0.4 * self.dark),
                     C.SCREEN_W / 2, 90)
         # pilihan lain ikut tenggelam saat yang disorot makin gelap
         others = 1.0 - 0.8 * self.dark ** 1.5
@@ -225,7 +247,7 @@ class DifficultyScene:
             else:
                 dims.append(others)
         self.menu.draw(screen, item_alpha=dims)
-        draw_center(screen, "Esc: kembali", font(13), (70, 67, 63), C.SCREEN_W / 2, C.SCREEN_H - 40)
+        draw_center(screen, lang.t("back_hint"), font(13), (70, 67, 63), C.SCREEN_W / 2, C.SCREEN_H - 40)
         fx = self.app.effects
         heavy = max(0.0, (self.dark - 0.6) / 0.4)   # hanya terasa di Pekat
         fx.grain(screen, self.t, 1.0 + 0.8 * heavy)

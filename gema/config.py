@@ -7,6 +7,8 @@ docs/GDD.md dan akan disetel ulang setelah playtest.
 import math
 from dataclasses import dataclass
 
+from . import lang
+
 # --- Layar ---------------------------------------------------------------
 SCREEN_W = 960
 SCREEN_H = 540
@@ -52,6 +54,15 @@ ECHO_BRIGHT_TIME = 0.3
 ECHO_FADE_TIME = 2.5
 BLIP_TIME = 1.5
 ITEM_BLIP_TIME = 3.0
+
+# --- Kerikil & hancurkan dinding -----------------------------------------
+STONE_RANGE = 190.0     # kerikil jatuh sejauh ini di depan pemain (melambung, bisa lewat atas dinding)
+STONE_FLIGHT = 0.45     # lama kerikil di udara
+STONE_NOISE = 260.0     # bunyi "tok" saat jatuh menarik Pendengar ke sana
+RIPPLE_TIME = 0.8       # lingkaran samar di tempat kerikil jatuh
+BREAK_TIME = 1.0        # lama menahan E sampai dinding runtuh
+BREAK_NOISE = 400.0     # runtuhnya dinding sekeras sonar
+DEBRIS_TIME = 0.6       # pecahan batu yang terlempar saat dinding runtuh
 
 # --- Senter --------------------------------------------------------------
 LIGHT_HALF_ANGLE = math.radians(25)
@@ -181,6 +192,9 @@ VOLUME = {
     "title_ping": 0.2,
     "heart_other": 0.48,
     "dead_flashlight": 0.6,
+    "stone": 0.5,
+    "crumble": 0.55,
+    "melody": 0.4,
 }
 
 
@@ -188,8 +202,6 @@ VOLUME = {
 @dataclass(frozen=True)
 class Difficulty:
     key: str
-    name: str
-    desc: str
     lives: int
     listener_speed: float
     listener_hearing: float
@@ -202,24 +214,32 @@ class Difficulty:
     aura_radius: int = AURA_RADIUS   # cahaya redup di sekitar pemain
     memory_glow: float = 1.0         # terangnya ingatan sonar (dinding yang pernah terlihat)
     echo_fade: float = ECHO_FADE_TIME  # berapa lama gema sonar memudar
+    stones: int = 2                  # kerikil per lantai
+    wall_breaks: int = 1             # dinding yang bisa dihancurkan per lantai
+    retry_floor: bool = False        # nyawa habis: ulangi lantai ini dengan labirin baru, bukan kembali ke judul
+
+    @property
+    def name(self):
+        return lang.data("difficulty")[self.key][0]
+
+    @property
+    def desc(self):
+        return lang.data("difficulty")[self.key][1]
 
 
 REDUP = Difficulty(
-    "redup", "Redup", "3 nyawa. Tidak segelap itu. Mereka lebih lambat, baterai lebih awet.",
-    lives=3, listener_speed=0.8, listener_hearing=0.85, battery_drain=5.0,
+    "redup", lives=3, listener_speed=0.8, listener_hearing=0.85, battery_drain=5.0,
     batteries_per_floor=4, sonar_cooldown=2.0, false_echo_mult=0.5, watcher_from_floor=2,
-    aura_radius=88, memory_glow=3.4, echo_fade=4.5,
+    aura_radius=88, memory_glow=3.4, echo_fade=4.5, stones=3, wall_breaks=2, retry_floor=True,
 )
 GELAP = Difficulty(
-    "gelap", "Gelap", "2 nyawa. Seperti yang dimaksudkan.",
-    lives=2, listener_speed=1.0, listener_hearing=1.0, battery_drain=7.0,
+    "gelap", lives=2, listener_speed=1.0, listener_hearing=1.0, battery_drain=7.0,
     batteries_per_floor=3, sonar_cooldown=3.0, false_echo_mult=1.0, watcher_from_floor=2,
 )
 PEKAT = Difficulty(
-    "pekat", "Pekat", "1 nyawa. Jangan berharap banyak.",
-    lives=1, listener_speed=1.2, listener_hearing=1.15, battery_drain=10.0,
+    "pekat", lives=1, listener_speed=1.2, listener_hearing=1.15, battery_drain=10.0,
     batteries_per_floor=2, sonar_cooldown=4.5, false_echo_mult=1.5, watcher_from_floor=1,
-    extra_listener_floors=(3, 4, 5),
+    extra_listener_floors=(3, 4, 5), stones=1,
 )
 DIFFICULTIES = (REDUP, GELAP, PEKAT)
 

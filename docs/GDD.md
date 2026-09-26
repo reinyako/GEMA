@@ -14,7 +14,7 @@
 | Platform | PC (Windows, macOS, Linux) |
 | Teknologi | Python 3.10+, pygame-ce, numpy |
 | Durasi satu run | 15–25 menit (5 lantai + lantai terakhir) |
-| Bahasa | Indonesia |
+| Bahasa | Indonesia dan English (dipilih di Pengaturan; saat pertama dibuka mengikuti bahasa sistem) |
 | Aset | Tanpa file gambar atau suara. Semua visual digambar dengan kode, semua suara dibuat dengan numpy. |
 
 **Premis.** Pemain terbangun di labirin gelap dengan senter tua dan alat sonar. Untuk melihat, ia harus mengirim sonar, padahal sonar itu terdengar oleh makhluk-makhluk yang berburu dengan telinga. Di setiap lantai ia harus menemukan tiga fragmen berisi catatan tulisan tangannya sendiri. Setelah ketiganya terkumpul, pintu keluar terbuka.
@@ -85,6 +85,8 @@ Game menyimpan jumlah percobaan, kematian, dan ending yang pernah dicapai. Angka
 | Mouse | Mengarahkan senter |
 | Klik kiri (tahan) | Menyalakan senter |
 | Klik kanan / `Space` | Sonar |
+| `Q` | Lempar kerikil (§5.9) |
+| `E` (tahan) | Hancurkan dinding (§5.9) |
 | `Esc` | Jeda |
 | `F11` | Layar penuh |
 
@@ -178,6 +180,15 @@ Baterai cadangan tersebar di jalan buntu yang tersisa. Jumlahnya per lantai terg
   6. Pemain muncul lagi di pintu masuk lantai yang sama.
 - Setelah mati, fragmen yang sudah diambil tetap tersimpan, dan monster dipindahkan jauh dari pintu masuk. Stres tidak kembali ke nol (§6.1).
 - Kalau nyawa habis, muncul tulisan *"Percobaan ke-N berakhir."* lalu game kembali ke layar judul.
+- **Kecuali di Redup:** nyawa habis tidak mengakhiri percobaan. Muncul tulisan pengulangan (§10.5), lalu lantai itu diulang dari awal dengan labirin baru, nyawa dan baterai penuh lagi. Catatan dari lantai sebelumnya tetap ada; fragmen lantai ini harus dicari lagi. Layar hasil di ending menampilkan berapa kali lantai diulang.
+
+### 5.9 Kerikil dan menghancurkan dinding
+
+Dua alat untuk lolos saat terpojok. Keduanya memakai aturan inti game: mereka berburu dengan telinga.
+
+- **Kerikil (`Q`):** dilempar melambung ke arah senter, bisa lewat atas dinding, dan jatuh ±190 px di depan. Kalau titik itu dinding, kerikil jatuh di lantai terdekat. Melempar tidak berisik; bunyi *tok* saat jatuh terdengar sampai 260 px dan menarik Pendengar ke sana, termasuk yang sedang memburu. Tempat jatuhnya ditandai lingkaran samar.
+- **Hancurkan dinding (tahan `E` selama 1 detik):** menghadap dinding, dan dinding di depan runtuh jadi jalan. Hanya dinding dalam yang di baliknya ada lorong; dinding tepi labirin tidak bisa. Runtuhnya **sekeras sonar** (400 px), jadi sesudahnya harus segera pergi.
+- Jatahnya diisi ulang di setiap lantai (lihat §9). Sisa jatah terlihat di menu jeda sebagai titik, bukan angka. Di lantai terakhir tidak ada alat.
 
 ---
 
@@ -355,6 +366,9 @@ Lantai ini berupa lorong panjang yang berkelok, tanpa monster, tanpa fragmen, da
 | Aura di sekitar pemain | 88 px | 44 px | 44 px |
 | Gema sonar memudar dalam | 4,5 dtk | 2,5 dtk | 2,5 dtk |
 | Ingatan sonar (dinding yang pernah terlihat) | ×3,4 lebih terang | biasa | biasa |
+| Kerikil per lantai | 3 | 2 | 1 |
+| Dinding yang bisa dihancurkan per lantai | 2 | 1 | 1 |
+| Nyawa habis | Lantai diulang dengan labirin baru | Percobaan berakhir | Percobaan berakhir |
 
 ---
 
@@ -408,18 +422,56 @@ Ini trik psikologis bahwa game "kenal" pemain.
   - Percobaan pertama: *"Ini percobaan pertama. Setidaknya itu yang tertulis."*
   - Percobaan berikutnya: *"Ini percobaan ke-{n}. Kali ini jangan lari."*
 - **Catatan #12**, mulai percobaan ke-3: *"Sudah berapa kali kamu membaca kalimat ini?"*
+- **Mengulang lantai di Redup** (nyawa habis). Tulisannya makin menusuk kalau lantai yang sama diulang terus, dan hitungannya mulai dari nol di lantai berikutnya:
+  1. *"Kamu bangun lagi."*
+  2. *"Lagi."*
+  3. *"Kamu lelah?"*
+  4. *"Tempat ini mulai hafal langkahmu."*
+  5. *"Mereka sudah tidak perlu mencarimu lagi."*
+  6. *"Senternya masih nyala. Kamu?"*
+  7. dan seterusnya, bergantian: *"Sudah berapa kali?"*, *"Istirahat saja. Tidak ada yang menunggu."*, *"Kamu masih di sini."*
 
 ### 10.6 Ending
 
-Setelah pemain masuk pintu di lantai terakhir, layar menjadi hitam dan tulisan muncul perlahan seperti sedang ditulis:
+Setelah pemain masuk pintu di lantai terakhir:
 
-> *Catatan pertama.*
->
-> *Kalau kamu baca ini, berarti alatnya masih nyala.*
->
-> *Bagus.*
+1. **Cahaya.** Untuk pertama kalinya di seluruh game, layarnya terang. Pemain berjalan masuk ke cahaya, dan satu-satunya musik di GEMA dimainkan: kotak musik pendek dengan gema seperti sonar.
+2. **Ping raksasa.** Gelombang sonar menyingkap labirin selebar layar. Di dalamnya berdiri sosok-sosok yang sama persis dengan pemain, satu untuk setiap percobaan sebelumnya (minimal tiga), semuanya menghadap pemain. Muncul tulisan catatan #14: *"Mereka yang di sini semuanya pernah memegang senter ini."* Lalu mereka padam satu per satu.
+3. **Catatan pertama.** Tulisan muncul perlahan seperti sedang ditulis:
 
-Setelah jeda, muncul *"Percobaan ke-{n+1}."*, lalu kredit singkat (*GEMA, oleh v.obscura*), lalu layar judul. Kalimat di ending ini sama persis dengan catatan #1, jadi loop-nya tertutup.
+   > *Catatan pertama.*
+   >
+   > *Kalau kamu baca ini, berarti alatnya masih nyala.*
+   >
+   > *Bagus.*
+
+4. **Catatanmu sendiri.** Pemain boleh mengetik catatan (maksimal 90 huruf) untuk percobaan berikutnya. Catatan itu menggantikan catatan #1 di fragmen pertama, sampai ditimpa lagi.
+5. **Hasil, di dalam cahaya.** Layar kembali terang dan melodinya terdengar lagi. Tampil tingkat kesulitan, waktu, jumlah mati, catatan yang ditemukan, sonar, kerikil, dinding, dan Pengamat yang diusir. Pencapaian baru muncul satu per satu dengan denting.
+6. **Kredit.** Cahayanya padam pelan-pelan, lalu kredit singkat (*GEMA, oleh v.obscura*) muncul di kegelapan.
+7. *"Percobaan ke-{n+1}."* di kegelapan, lalu layar judul. Loop-nya mulai lagi.
+
+`Esc` di tahap 1–3 langsung ke tahap 4. Kalimat di tahap 3 sama persis dengan catatan #1 bawaan, jadi loop-nya tertutup.
+
+### 10.8 Pencapaian
+
+Ada 14 pencapaian, dilihat dari menu **Pencapaian** di layar judul. Yang dikumpulkan lintas percobaan menampilkan progres.
+
+| Pencapaian | Syarat |
+|---|---|
+| Keluar dari Redup / Gelap / Pekat | Tamat di tingkat itu. Menu kesulitan lalu menandainya *(tamat)* |
+| Tak Tersentuh | Tamat tanpa mati |
+| Tidak Pernah Lari | Tamat tanpa pernah lari |
+| Tanpa Cahaya | Tamat dengan senter menyala kurang dari satu menit |
+| Tangan Kosong | Tamat tanpa kerikil dan tanpa menghancurkan dinding |
+| Tidak Menoleh | Tamat dalam waktu kurang dari 12 menit |
+| Pengalih | Mengalihkan Pendengar yang sedang memburu dengan kerikil |
+| Lagi. | Tamat dua kali |
+| Jalan Pintas | Menghancurkan 10 dinding (total) |
+| Menatap Balik | Mengusir Pengamat 10 kali (total) |
+| Seribu Gema | Memakai sonar 1000 kali (total) |
+| Kembali Lagi | Memulai 10 percobaan |
+
+Percobaan dicatat saat tamat, saat nyawa habis (pencapaian baru ditulis di layar *"Percobaan ke-N berakhir."*), atau saat kembali ke judul dari menu jeda. Percobaan yang dibantu, yaitu memakai mode dev atau dimulai dari lantai selain 1, tidak dicatat.
 
 ### 10.7 Layar judul dinamis
 
@@ -487,6 +539,10 @@ Semua suara dibuat dengan numpy saat game dimulai.
 | Dinding bergeser | Gesekan batu yang sangat pelan dari kejauhan | Stereo |
 | Bisikan | Desis dengan warna suara orang | Kiri atau kanan secara acak |
 | Tertangkap | Semua suara hilang, satu hantaman tumpul, lalu satu detak jantung terakhir | |
+| Kerikil jatuh | *Tok*, lalu memantul sekali-dua kali | Stereo, dari tempat jatuh |
+| Dinding dihancurkan | Gesekan batu selama `E` ditahan, lalu dentum berat dan bebatuan berjatuhan | Stereo |
+| Melodi ending | Kotak musik pendek dengan gema seperti sonar. Satu-satunya musik di game | Hanya di ending |
+| Menu | *Cetik* senter setiap kali memilih sesuatu | |
 
 **Prinsip audio:**
 - **Batas kekerasan suara.** Tidak ada efek suara yang lebih dari ±2× kerasnya dengung latar. Ini menjaga aturan tanpa jumpscare.
@@ -510,7 +566,8 @@ Judul ──► Pilih kesulitan ──► Intro lantai ──► MAIN ◄──�
 ```
 
 - **Intro lantai:** layar hitam dengan tulisan *"Lantai N"* dan sisa nyawa, masing-masing ±2 detik.
-- **Menu jeda:** berisi daftar kontrol, catatan yang sudah ditemukan di run ini, dan sisa nyawa.
+- **Menu jeda:** berisi daftar kontrol, catatan yang sudah ditemukan di run ini, sisa nyawa, dan sisa kerikil serta dinding.
+- **Pencapaian:** dibuka dari layar judul (§10.8).
 
 ---
 
@@ -522,6 +579,10 @@ Data disimpan di `~/.gema/save.json`:
 - `kematian`: jumlah nyawa yang pernah hilang
 - `ending`: berapa kali ending pernah dicapai
 - `lantai_terbaik`: lantai terdalam yang pernah dicapai, per tingkat kesulitan
+- `tamat`: berapa kali tamat, per tingkat kesulitan
+- `total_ping`, `total_dinding`, `pengamat_diusir`: angka yang dikumpulkan untuk pencapaian
+- `pencapaian`: daftar pencapaian yang sudah terbuka
+- `catatan_pemain`: catatan yang ditulis pemain di ending, jadi catatan #1 di percobaan berikutnya
 
 Kalau file rusak, game diam-diam mulai dari awal lagi tanpa crash.
 

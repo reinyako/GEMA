@@ -8,7 +8,9 @@ from gema.app import App, parse_args
 from gema.input import BotController
 from gema import config as C
 from gema.scenes.dev import DevScene
-from gema.scenes.ending import EndingScene
+from gema.run import Run
+from gema.scenes.achievements import AchievementsScene
+from gema.scenes.ending import NOTE, EndingScene
 from gema.scenes.interlude import InterludeScene
 from gema.scenes.play import DYING, PlayScene
 from gema.scenes.title import DifficultyScene, TitleScene
@@ -91,7 +93,7 @@ def test_caught_sequence_shakes_reveals_then_fades():
 
 def test_dev_menu_toggles_from_title_and_pause():
     app = App(parse_args(["--dev", "--mute"]))
-    assert app.scene.menu.items == ["Mulai", "Mode dev", "Keluar"]
+    assert app.scene.menu.items == ["Mulai", "Mode dev", "Pencapaian", "Pengaturan", "Keluar"]
     app.step(1 / 30, [key(pygame.K_DOWN), key(pygame.K_RETURN)])
     assert isinstance(app.scene, DevScene)
     app.step(1 / 30, [key(pygame.K_RETURN)])                       # kebal
@@ -145,6 +147,121 @@ def test_stop_all_keeps_the_menu_click():
     assert pygame.mixer.Channel(ui).get_busy()
     assert not any(pygame.mixer.Channel(i).get_busy()
                    for i in range(pygame.mixer.get_num_channels()) if i != ui)
+
+
+def test_q_throws_a_stone_in_game():
+    app = App(parse_args(["--mute", "--seed", "5"]))
+    start(app)
+    while not isinstance(app.scene, PlayScene):
+        app.step(1 / 30, [])
+    f = app.scene.floor
+    left = f.stones_left
+    app.step(1 / 30, [key(pygame.K_q)])
+    assert f.stones_left == left - 1
+    app.step(1 / 30, [key(pygame.K_ESCAPE)])   # menu jeda menggambar sisa kerikil
+    app.step(1 / 30, [])
+    assert app.scene.paused
+
+
+def test_ending_lets_you_write_the_next_first_note():
+    app = App(parse_args(["--mute"]))
+    run = Run(C.GELAP, seed=8, attempt=1)
+    app.switch(EndingScene(app, run))
+    app.step(1 / 30, [key(pygame.K_ESCAPE)])              # lewati cahaya, langsung ke catatan
+    assert app.scene.stage == NOTE
+    typed = [pygame.event.Event(pygame.TEXTINPUT, text=ch) for ch in "Pakai kerikil."]
+    app.step(1 / 30, typed + [key(pygame.K_BACKSPACE)])
+    app.step(1 / 30, [key(pygame.K_RETURN)])
+    assert app.save.catatan_pemain == "Pakai kerikil"
+    assert "tamat_gelap" in app.save.pencapaian
+    for _ in range(30 * 120):
+        app.step(1 / 30, [])
+        if isinstance(app.scene, TitleScene):
+            break
+    assert isinstance(app.scene, TitleScene)
+    assert app.save.tamat["gelap"] == 1
+
+
+def test_achievements_screen_opens_from_title():
+    app = App(parse_args(["--mute"]))
+    items = app.scene.menu.items
+    app.step(1 / 30, [key(pygame.K_DOWN)] * items.index("Pencapaian") + [key(pygame.K_RETURN)])
+    assert isinstance(app.scene, AchievementsScene)
+    app.step(1 / 30, [])
+    app.step(1 / 30, [key(pygame.K_ESCAPE)])
+    assert isinstance(app.scene, TitleScene)
+
+
+def _die_with_no_lives_left(app, difficulty):
+    run = Run(difficulty, seed=4, attempt=1)
+    run.lives = 1
+    app.go_floor_intro(run)
+    while not isinstance(app.scene, PlayScene):
+        app.step(1 / 30, [])
+    scene = app.scene
+    scene.run.notes.append("catatan lantai ini")
+    scene.floor.taken = 1
+    scene._die(scene.floor.listeners[0])
+    return run, scene
+
+
+def test_redup_repeats_the_floor_with_a_new_maze_when_lives_run_out():
+    app = App(parse_args(["--mute"]))
+    run, scene = _die_with_no_lives_left(app, C.REDUP)
+    old_grid = [row[:] for row in scene.floor.maze.grid]
+    for _ in range(30 * 20):
+        app.step(1 / 30, [])
+        if isinstance(app.scene, PlayScene) and app.scene is not scene:
+            break
+    assert isinstance(app.scene, PlayScene) and app.scene is not scene
+    assert run.floor == 1 and run.retries == run.floor_retries == 1 and run.lives == C.REDUP.lives
+    assert run.notes == []
+    assert app.scene.floor.maze.grid != old_grid
+
+
+def test_gelap_still_ends_the_attempt_when_lives_run_out():
+    app = App(parse_args(["--mute"]))
+    _die_with_no_lives_left(app, C.GELAP)
+    for _ in range(30 * 20):
+        app.step(1 / 30, [])
+        if isinstance(app.scene, TitleScene):
+            break
+    assert isinstance(app.scene, TitleScene)
+
+
+def test_settings_switch_the_language():
+    from gema import lang
+    from gema.scenes.settings import SettingsScene
+
+    app = App(parse_args(["--mute"]))
+    items = app.scene.menu.items
+    app.step(1 / 30, [key(pygame.K_DOWN)] * items.index("Pengaturan") + [key(pygame.K_RETURN)])
+    assert isinstance(app.scene, SettingsScene)
+    app.step(1 / 30, [key(pygame.K_RETURN)])    # Bahasa: Indonesia -> English
+    assert lang.current == "en" and app.save.bahasa == "en"
+    assert app.scene.menu.items[0] == "Language: English"
+    app.step(1 / 30, [key(pygame.K_ESCAPE)])
+    assert isinstance(app.scene, TitleScene)
+    assert app.scene.menu.items == ["Begin", "Achievements", "Settings", "Quit"]
+    start(app)
+    while not isinstance(app.scene, PlayScene):
+        app.step(1 / 30, [])
+    app.step(1 / 30, [key(pygame.K_ESCAPE)])
+    assert app.scene.pause_menu.items == ["Resume", "Notes", "Back to title"]
+
+
+def test_lang_flag_is_for_this_session_only():
+    from gema import lang
+
+    from gema.save import SaveData
+
+    saved = SaveData.load()
+    saved.bahasa = "id"
+    saved.write()
+    app = App(parse_args(["--mute", "--lang", "en"]))
+    assert lang.current == "en" and app.scene.menu.items[0] == "Begin"
+    assert C.GELAP.name == "Dark" and C.PEKAT.name == "Pitch Black"
+    assert SaveData.load().bahasa == "id"   # --lang tidak mengubah pengaturan yang tersimpan
 
 
 def test_debug_overlay_only_in_dev_mode():

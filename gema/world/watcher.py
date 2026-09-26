@@ -108,6 +108,7 @@ class Watcher:
                 self.state = FADING
                 self.lit_now = False
                 floor.sfx.append(("exhale", self.x, self.y))
+                floor.run.banished += 1
             return
         self.lit_time = 0.0
         if self.observed:

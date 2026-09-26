@@ -1,15 +1,17 @@
-"""Mode dev untuk testing: kebal, sonar tanpa jeda, dan senter tanpa batas.
+"""Mode dev untuk testing: kebal, sonar tanpa jeda, senter tanpa batas, dan alat tanpa batas.
 
 Aktif dengan `python main.py --dev`. Pilihannya bisa diubah dari layar judul atau menu jeda.
 """
 
 from dataclasses import dataclass
 
-OPTIONS = (
-    ("god", "Kebal (tidak bisa mati)", "kebal"),
-    ("no_cooldown", "Sonar tanpa jeda", "sonar tanpa jeda"),
-    ("infinite_light", "Senter tanpa batas", "senter tanpa batas"),
-)
+from . import lang
+
+OPTIONS = ("god", "no_cooldown", "infinite_light", "infinite_tools")  # label: lang "dev_options"
+
+
+def label(key):
+    return lang.data("dev_options")[key][0]
 
 
 @dataclass
@@ -18,9 +20,10 @@ class DevSettings:
     god: bool = False
     no_cooldown: bool = False
     infinite_light: bool = False
+    infinite_tools: bool = False
 
     def any_active(self):
-        return any(getattr(self, key) for key, _, _ in OPTIONS)
+        return any(getattr(self, key) for key in OPTIONS)
 
     def summary(self):
-        return " · ".join(short for key, _, short in OPTIONS if getattr(self, key))
+        return " · ".join(lang.data("dev_options")[key][1] for key in OPTIONS if getattr(self, key))

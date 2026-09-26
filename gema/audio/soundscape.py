@@ -10,6 +10,7 @@ POSITIONAL_RANGE = {
     "whisper": 400.0,
     "exhale": 500.0,
     "dead_flashlight": 500.0,
+    "crumble": 900.0,
 }
 
 
@@ -85,6 +86,12 @@ class Soundscape:
         else:
             a.stop_loop("breath")
             self.other_heart_timer = 60.0 / C.WATCHER_HEART_BPM
+
+        # menahan E: gesekan batu selama dinding sedang dihancurkan
+        if floor.break_tile is not None:
+            a.set_loop("break", "grind", 1.0)
+        else:
+            a.stop_loop("break")
 
         danger = floor.danger()
         if danger > C.HEART_THRESHOLD and not floor.rules.final:

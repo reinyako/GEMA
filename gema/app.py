@@ -1,12 +1,14 @@
 """Jendela, loop utama, dan pergantian scene."""
 
 import argparse
+import os
 import random
 import sys
 
 import pygame
 
 from . import config as C
+from . import lang
 from .audio.manager import Audio
 from .dev import DevSettings
 from .input import HumanController
@@ -23,8 +25,9 @@ def parse_args(argv=None):
                    help="mulai langsung dari lantai ini")
     p.add_argument("--difficulty", choices=[d.key for d in C.DIFFICULTIES], help="pilihan awal kesulitan")
     p.add_argument("--dev", "--debug", dest="dev", action="store_true",
-                   help="mode dev: menu kebal/sonar tanpa jeda/senter tanpa batas, plus F3, F5, dan F6")
+                   help="mode dev: menu kebal/sonar tanpa jeda/senter & alat tanpa batas, plus F3, F5, dan F6")
     p.add_argument("--mute", action="store_true", help="main tanpa suara")
+    p.add_argument("--lang", choices=lang.CODES, help="bahasa untuk sesi ini (id / en), tanpa mengubah pengaturan")
     p.add_argument("--selftest", action="store_true",
                    help="tes singkat tanpa layar lalu keluar (untuk memeriksa hasil build)")
     return p.parse_args(argv)
@@ -43,6 +46,8 @@ class App:
             self.screen = pygame.display.set_mode((C.SCREEN_W, C.SCREEN_H))
         self.clock = pygame.time.Clock()
         self.save = SaveData.load()
+        # GEMA_LANG hanya untuk test: membuat bahasa tetap, apa pun bahasa sistemnya
+        lang.set_lang(args.lang or os.environ.get("GEMA_LANG") or self.save.bahasa)
         self.audio = Audio(enabled=not args.mute)
         self.effects = Effects()
         self.make_controller = HumanController
@@ -66,14 +71,15 @@ class App:
         self.save.percobaan += 1
         self.save.write()
         seed = self.args.seed if self.args.seed is not None else random.randrange(1, 1 << 30)
-        run = Run(difficulty=difficulty, seed=seed, attempt=self.save.percobaan, floor=self.args.floor)
+        run = Run(difficulty=difficulty, seed=seed, attempt=self.save.percobaan, floor=self.args.floor,
+                  own_note=self.save.catatan_pemain)
         self.go_floor_intro(run)
 
     def go_floor_intro(self, run):
         from .scenes.interlude import InterludeScene
         from .scenes.play import PlayScene
 
-        title = "Lantai" if run.floor >= C.FINAL_FLOOR else f"Lantai {run.floor}"
+        title = lang.t("floor_final") if run.floor >= C.FINAL_FLOOR else lang.t("floor", n=run.floor)
         self.audio.stop_all()
         self.switch(InterludeScene(
             self, [title], then=lambda: self.switch(PlayScene(self, run)),

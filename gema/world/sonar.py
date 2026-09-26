@@ -102,6 +102,11 @@ class Sonar:
         p.det_i = 0
         self.pings.append(p)
 
+    def forget(self, tile):
+        """Menghapus jejak ingatan di satu petak, misalnya dinding yang baru runtuh."""
+        t = C.TILE
+        self.memory.fill((0, 0, 0), (tile[0] * t - 2, tile[1] * t - 2, t + 4, t + 4))
+
     def add_ring(self, x, y):
         self.rings.append(Ring(x, y))
 

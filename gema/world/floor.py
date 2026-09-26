@@ -33,7 +33,8 @@ class Floor:
         self.run = run
         self.rules = rules
         self.diff = run.difficulty
-        self.rng = random.Random(run.seed * 7919 + rules.number * 104729)
+        # lantai yang diulang (Redup) mendapat labirin baru
+        self.rng = random.Random(run.seed * 7919 + rules.number * 104729 + run.retries * 15485863)
 
         if rules.final:
             self.maze, start, exit_tile = final_corridor(self.rng)
@@ -54,6 +55,16 @@ class Floor:
         self.listeners = [Listener(*tile_center(t), self.rng) for t in layout.listeners]
         self.watcher = Watcher(self.rng) if rules.watcher else None
         self.shadows = []
+        tools = not rules.final
+        self.stones_left = self.diff.stones if tools else 0
+        self.breaks_left = self.diff.wall_breaks if tools else 0
+        self.stones = []          # kerikil yang sedang melayang: [x0, y0, x1, y1, umur]
+        self.ripples = []         # lingkaran samar di tempat kerikil jatuh: [x, y, umur]
+        self.break_tile = None    # dinding yang sedang dihancurkan
+        self.break_dir = (0, 0)   # arah dari pemain ke dinding itu
+        self.break_progress = 0.0
+        self.debris = []          # pecahan dinding yang baru runtuh: [petak, arah, umur]
+        self._break_held = False
 
         self.noise = NoiseBus()
         memory = tuple(min(255, int(c * self.diff.memory_glow)) for c in C.COL_MEMORY)
@@ -93,14 +104,27 @@ class Floor:
             fl.battery = C.BATTERY_MAX
         if self.dev.no_cooldown:
             self.sonar.cooldown = 0.0
+        if self.dev.infinite_tools and not self.rules.final:
+            self.stones_left = self.diff.stones
+            self.breaks_left = self.diff.wall_breaks
         drain = 0.0 if self.dev.infinite_light else self.diff.battery_drain
         fl.update(dt, inp.light, p.x, p.y, p.aim, self.maze, drain, self.rng, self.sfx)
         if fl.on:
             self.last_light_time = self.time
+        run = self.run
+        run.play_time += dt
+        if p.running:
+            run.run_time += dt
+        if fl.on:
+            run.light_time += dt
 
         if inp.sonar and self.sonar.ready():
             self._ping()
         self.sonar.update(dt, self.time)
+        if inp.throw:
+            self._throw()
+        self._update_stones(dt)
+        self._update_break(dt, inp.break_wall)
 
         for listener in self.listeners:
             listener.update(dt, self)
@@ -149,6 +173,115 @@ class Floor:
         )
         self.noise.emit(p.x, p.y, C.SONAR_NOISE, "sonar")
         self.sfx.append(("ping", None, None))
+        self.run.pings += 1
+
+    # --- kerikil & dinding -------------------------------------------------
+    def _throw(self):
+        endless = self.dev.infinite_tools
+        if self.stones_left <= 0 and not endless:
+            self.sfx.append(("click_dead", None, None))
+            return
+        if not endless:
+            self.stones_left -= 1
+        self.run.stones_thrown += 1
+        p = self.player
+        tx = p.x + math.cos(p.aim) * C.STONE_RANGE
+        ty = p.y + math.sin(p.aim) * C.STONE_RANGE
+        self.stones.append([p.x, p.y, *self._landing(tx, ty), 0.0])
+
+    def _landing(self, x, y):
+        """Titik jatuh kerikil: titik yang dituju, atau lantai terdekat darinya kalau itu dinding."""
+        tx, ty = tile_of(x, y)
+        if not self.maze.is_wall(tx, ty):
+            return x, y
+        for r in range(1, 4):
+            best = None
+            for ny in range(ty - r, ty + r + 1):
+                for nx in range(tx - r, tx + r + 1):
+                    if not self.maze.is_wall(nx, ny):
+                        cx, cy = tile_center((nx, ny))
+                        d = math.hypot(cx - x, cy - y)
+                        if best is None or d < best[0]:
+                            best = (d, cx, cy)
+            if best is not None:
+                return best[1], best[2]
+        return self.player.x, self.player.y
+
+    def _update_stones(self, dt):
+        flying = []
+        for s in self.stones:
+            s[4] += dt
+            if s[4] < C.STONE_FLIGHT:
+                flying.append(s)
+                continue
+            x, y = s[2], s[3]
+            self.noise.emit(x, y, C.STONE_NOISE, "stone")
+            self.sfx.append(("stone", x, y))
+            self.ripples.append([x, y, 0.0])
+        self.stones = flying
+        for r in self.ripples:
+            r[2] += dt
+        self.ripples = [r for r in self.ripples if r[2] < C.RIPPLE_TIME]
+        for d in self.debris:
+            d[2] += dt
+        self.debris = [d for d in self.debris if d[2] < C.DEBRIS_TIME]
+
+    def break_target(self):
+        """Petak dinding di depan pemain yang bisa dihancurkan, atau None.
+
+        Hanya dinding dalam yang di baliknya ada lorong, supaya jatahnya tidak terbuang percuma.
+        """
+        p = self.player
+        tx, ty = tile_of(p.x, p.y)
+        ax, ay = math.cos(p.aim), math.sin(p.aim)
+        if abs(ax) >= abs(ay):
+            dx, dy = (1 if ax > 0 else -1), 0
+        else:
+            dx, dy = 0, (1 if ay > 0 else -1)
+        wall, beyond = (tx + dx, ty + dy), (tx + 2 * dx, ty + 2 * dy)
+        m = self.maze
+        inside = 1 <= wall[0] <= m.w - 2 and 1 <= wall[1] <= m.h - 2
+        if inside and m.is_wall(*wall) and not m.is_wall(*beyond):
+            return wall
+        return None
+
+    def _update_break(self, dt, held):
+        pressed = held and not self._break_held
+        self._break_held = held
+        if held and self.breaks_left <= 0 and not self.dev.infinite_tools:
+            if pressed:
+                self.sfx.append(("click_dead", None, None))
+            return
+        target = self.break_target() if held else None
+        if target != self.break_tile:
+            self.break_tile = target
+            self.break_progress = 0.0
+        if target is None:
+            return
+        tx, ty = tile_of(self.player.x, self.player.y)
+        self.break_dir = (target[0] - tx, target[1] - ty)
+        self.break_progress += dt
+        if self.break_progress >= C.BREAK_TIME:
+            self._break_wall(target)
+
+    def _break_wall(self, tile):
+        self.maze.open_tile(tile)
+        self.changed_tiles.append(tile)
+        self.sonar.forget(tile)
+        for listener in self.listeners:
+            listener.invalidate(self.maze)
+        if self.watcher is not None:
+            self.watcher.path = []
+        cx, cy = tile_center(tile)
+        self.noise.emit(cx, cy, C.BREAK_NOISE, "wall")
+        self.sfx.append(("crumble", cx, cy))
+        self.events.append(("wall_broken",))
+        self.debris.append([tile, self.break_dir, 0.0])
+        if not self.dev.infinite_tools:
+            self.breaks_left -= 1
+        self.run.walls_broken += 1
+        self.break_tile = None
+        self.break_progress = 0.0
 
     # --- benda -------------------------------------------------------------
     def _pickups(self):
@@ -158,7 +291,7 @@ class Floor:
                 f.taken = True
                 self.taken += 1
                 index = (self.rules.number - 1) * C.FRAGMENTS_PER_FLOOR + self.taken - 1
-                self.events.append(("note", notes.note_text(index, self.run.attempt)))
+                self.events.append(("note", notes.note_text(index, self.run.attempt, self.run.own_note)))
                 self.noise.emit(f.x, f.y, C.FRAGMENT_PICKUP_NOISE, "fragment")
                 self.sfx.append(("chime", None, None))
                 self.stress.add(C.STRESS_FRAGMENT)
@@ -309,6 +442,9 @@ class Floor:
         self.noise.clear()
         self.sonar.clear_active()
         self.shadows.clear()
+        self.stones.clear()
+        self.break_tile = None
+        self.break_progress = 0.0
         dist = self.maze.bfs(self.start_tile)
         far = [t for t, d in dist.items() if d >= C.LISTENER_RESPAWN_MIN_TILES]
         if not far:

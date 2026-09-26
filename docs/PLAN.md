@@ -228,7 +228,7 @@ simple_pygame/
 | **Playtest manusia** | Kamu. Hanya lewat cara ini "rasa" game bisa dinilai (§7). |
 
 **Alat bantu untuk kamu saat playtest:**
-- `--dev`: menu mode dev (kebal, sonar tanpa jeda, senter tanpa batas) plus `F3` (overlay debug) dan `F5`/`F6`
+- `--dev`: menu mode dev (kebal, sonar tanpa jeda, senter tanpa batas, kerikil & dinding tanpa batas) plus `F3` (overlay debug) dan `F5`/`F6`
 - `python main.py --floor 4`: langsung ke Lantai 4
 - `--seed 123`: labirin yang sama setiap kali main, berguna untuk melaporkan bug
 - `--mute`: main tanpa suara

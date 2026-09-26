@@ -15,15 +15,20 @@ class InputState:
     aim: float = 0.0
     light: bool = False
     sonar: bool = False
+    throw: bool = False       # lempar kerikil (sekali tekan)
+    break_wall: bool = False  # hancurkan dinding (ditahan)
 
 
 class HumanController:
     def __init__(self):
         self._sonar = False
+        self._throw = False
 
     def handle_event(self, ev):
         if ev.type == pygame.KEYDOWN and ev.key == pygame.K_SPACE:
             self._sonar = True
+        elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_q:
+            self._throw = True
         elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 3:
             self._sonar = True
 
@@ -33,8 +38,10 @@ class HumanController:
         my = (keys[pygame.K_s] or keys[pygame.K_DOWN]) - (keys[pygame.K_w] or keys[pygame.K_UP])
         run = bool(keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT])
         light = bool(pygame.mouse.get_pressed()[0])
-        inp = InputState((float(mx), float(my)), run, scene.aim_at(pygame.mouse.get_pos()), light, self._sonar)
+        inp = InputState((float(mx), float(my)), run, scene.aim_at(pygame.mouse.get_pos()), light, self._sonar,
+                         throw=self._throw, break_wall=bool(keys[pygame.K_e]))
         self._sonar = False
+        self._throw = False
         return inp
 
 

@@ -79,6 +79,7 @@ class FloorRenderer:
         e = self.echo
         e.fill((0, 0, 0))
         self._echoes(e, camx, camy, t)
+        self._tools(e, camx, camy)
         screen.blit(e, (0, 0), special_flags=pygame.BLEND_ADD)
         self._exit_crack(screen, camx, camy, t)
         self._player(screen, camx, camy)
@@ -177,6 +178,66 @@ class FloorRenderer:
                 pygame.draw.circle(e, scale(C.COL_BATTERY, k * (1.0 if b.sharp else 0.5)), (x, y), 3)
             elif b.kind == "exit":
                 e.fill(scale(C.COL_EXIT, k * (0.8 if b.sharp else 0.4)), (x - 1, y - 11, 3, 22))
+
+    def _tools(self, e, camx, camy):
+        """Kerikil yang melayang, lingkaran bunyi di tempat jatuh, dan retakan dinding."""
+        f = self.floor
+        for x0, y0, x1, y1, age in f.stones:
+            u = age / C.STONE_FLIGHT
+            lift = math.sin(math.pi * u)
+            x = x0 + (x1 - x0) * u - camx
+            y = y0 + (y1 - y0) * u - camy - lift * 18
+            pygame.draw.circle(e, scale(C.COL_PLAYER, 0.55), (int(x), int(y)), 2 + round(lift))
+        for x, y, age in f.ripples:
+            u = age / C.RIPPLE_TIME
+            pygame.draw.circle(e, scale(C.COL_SONAR, 0.35 * (1 - u)),
+                               (int(x - camx), int(y - camy)), int(6 + 50 * u), 1)
+        if f.break_tile is not None:
+            self._cracks(e, f.break_tile, f.break_dir, min(1.0, f.break_progress / C.BREAK_TIME), camx, camy)
+        for tile, (dx, dy), age in f.debris:
+            u = age / C.DEBRIS_TIME
+            fx, fy = self._face(tile, (dx, dy), camx, camy)
+            rng = random.Random(tile[0] * 7919 + tile[1])
+            for _ in range(9):
+                # terlempar keluar dari sisi dinding, ke arah pemain
+                a = math.atan2(-dy, -dx) + rng.uniform(-1.1, 1.1)
+                along = rng.uniform(-10, 10)
+                dist = rng.uniform(10, 26) * (1 - (1 - u) ** 2)
+                x = fx - dy * along + math.cos(a) * dist
+                y = fy + dx * along + math.sin(a) * dist
+                e.fill(scale(C.COL_WALL, 0.9 * (1 - u)), (int(x), int(y), 2, 2))
+
+    @staticmethod
+    def _face(tile, direction, camx, camy):
+        """Titik tengah sisi dinding yang menghadap pemain, di koordinat layar."""
+        dx, dy = direction
+        cx, cy = (tile[0] + 0.5) * C.TILE - camx, (tile[1] + 0.5) * C.TILE - camy
+        return cx - dx * C.TILE / 2, cy - dy * C.TILE / 2
+
+    def _cracks(self, e, tile, direction, k, camx, camy):
+        """Retakan yang tumbuh dari sisi dinding yang dipukul, dan tidak keluar dari petak dinding itu."""
+        dx, dy = direction
+        fx, fy = self._face(tile, direction, camx, camy)
+        rect = pygame.Rect(int(tile[0] * C.TILE - camx), int(tile[1] * C.TILE - camy), C.TILE, C.TILE)
+        e.set_clip(rect)
+        # sisi yang dipukul menyala samar (digeser sedikit ke dalam supaya tidak terpotong clip)
+        half = C.TILE / 2
+        ix, iy = fx + dx * 1.5, fy + dy * 1.5
+        a0 = (ix - dy * half, iy + dx * half)
+        a1 = (ix + dy * half, iy - dx * half)
+        pygame.draw.line(e, scale(C.COL_SONAR, 0.15 + 0.35 * k), a0, a1, 2)
+        rng = random.Random(tile[0] * 7919 + tile[1])
+        inward = math.atan2(dy, dx)
+        for _ in range(1 + int(k * 5)):
+            along = rng.uniform(-0.7, 0.7) * half
+            pts = [(fx - dy * along, fy + dx * along)]
+            a = inward + rng.uniform(-0.9, 0.9)
+            for _ in range(3):
+                a += rng.uniform(-0.6, 0.6)
+                step = rng.uniform(3, 6) * (0.5 + k)
+                pts.append((pts[-1][0] + math.cos(a) * step, pts[-1][1] + math.sin(a) * step))
+            pygame.draw.lines(e, scale(C.COL_SONAR, 0.3 + 0.45 * k), False, pts, 1)
+        e.set_clip(None)
 
     def _exit_crack(self, screen, camx, camy, t):
         e = self.floor.exit

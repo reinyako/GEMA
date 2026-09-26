@@ -11,7 +11,7 @@ from . import synth
 
 LOOP_SLOTS = (
     "drone_a", "drone_b", "heart", "frag0", "frag1", "frag2", "exit",
-    "lis0", "lis1", "lis2", "lis3", "lis4", "lis5", "breath", "ui",
+    "lis0", "lis1", "lis2", "lis3", "lis4", "lis5", "breath", "ui", "break",
 )
 
 

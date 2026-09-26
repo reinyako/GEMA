@@ -166,6 +166,56 @@ def dead_flashlight(sr, rng):
     return _norm(out, 0.8)
 
 
+def stone(sr, rng):
+    """Kerikil jatuh: tok, lalu memantul sekali-dua kali."""
+    t = _t(sr, 0.5)
+
+    def knock(t0, amp):
+        tt = np.clip(t - t0, 0, None)
+        env = (t >= t0) * np.exp(-tt * 70) * _attack(tt, 0.001)
+        return amp * env * (0.6 * np.sin(2 * np.pi * 1300 * tt) + np.sin(2 * np.pi * 620 * tt))
+
+    tok = knock(0.0, 1.0) + knock(0.16, 0.45) + knock(0.27, 0.2)
+    grit = _band_noise(len(t), rng, sr, lo=600, hi=4000) * (
+        np.exp(-t * 60) + 0.45 * (t >= 0.16) * np.exp(-np.clip(t - 0.16, 0, None) * 60)
+    )
+    return _norm(tok + 0.35 * grit, 0.8)
+
+
+def crumble(sr, rng):
+    """Dinding runtuh: dentum berat, lalu bebatuan berjatuhan."""
+    t = _t(sr, 1.6)
+    thud = np.sin(2 * np.pi * 45 * t + 2.0 * np.exp(-t * 20)) * np.exp(-t * 5) * _attack(t, 0.004)
+    env = np.zeros_like(t)
+    for _ in range(14):
+        t0 = rng.uniform(0.05, 1.1)
+        env += rng.uniform(0.2, 0.8) * (t >= t0) * np.exp(-np.clip(t - t0, 0, None) * 30)
+    rubble = _band_noise(len(t), rng, sr, lo=120, hi=2500) * np.clip(env, 0, 1.2) * np.exp(-t * 1.2)
+    return _norm(thud + 0.5 * rubble, 0.85)
+
+
+def melody(sr):
+    """Satu-satunya musik di GEMA: kotak musik pendek di ending, dengan gema seperti sonar."""
+    phrase = [  # (detik, frekuensi, lama berdenging)
+        (0.0, 659.3, 1.0), (0.45, 880.0, 1.0), (0.9, 1108.7, 1.0), (1.35, 987.8, 1.0), (1.8, 880.0, 1.4),
+        (2.6, 659.3, 1.0), (3.05, 740.0, 1.0), (3.5, 880.0, 1.4), (4.3, 1318.5, 3.0),
+    ]
+    t = _t(sr, 7.5)
+    out = np.zeros_like(t)
+    for t0, f, ring in phrase:
+        tt = np.clip(t - t0, 0, None)
+        env = (t >= t0) * _attack(tt, 0.003) * np.exp(-tt * 2.2 / ring)
+        tone = (np.sin(2 * np.pi * f * tt)
+                + 0.35 * np.sin(2 * np.pi * 2 * f * tt) * np.exp(-tt * 6)
+                + 0.12 * np.sin(2 * np.pi * 3.01 * f * tt) * np.exp(-tt * 9))
+        out += env * tone
+    wet = out.copy()
+    for delay, gain in ((0.19, 0.3), (0.38, 0.14), (0.57, 0.06)):
+        k = int(delay * sr)
+        wet[k:] += out[: len(out) - k] * gain
+    return _norm(wet, 0.8)
+
+
 def battery(sr, rng):
     one = click(sr, rng)
     gap = np.zeros(int(sr * 0.06))
@@ -235,4 +285,7 @@ def build_all(sr, seed=7):
         # suara baru ditaruh di akhir supaya suara lama tetap sama (rng dipakai berurutan)
         "heart_other": other_heart(sr),
         "dead_flashlight": dead_flashlight(sr, rng),
+        "stone": stone(sr, rng),
+        "crumble": crumble(sr, rng),
+        "melody": melody(sr),
     }

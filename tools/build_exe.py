@@ -41,36 +41,66 @@ VSVersionInfo(
 
 README = """\
 GEMA {version}
-oleh v.obscura
+by v.obscura
+
+A top-down psychological horror game. In a maze of total darkness, to see is to be heard.
+The game is in English and Bahasa Indonesia. Change the language in Settings.
+
+(Bahasa Indonesia ada di bawah.)
+
+
+HOW TO PLAY
+Run GEMA.exe. No Python needed.
+
+WEAR HEADPHONES. Half of this game is in its sound, and where a sound comes from
+(left or right) matters.
+
+  W A S D              move (walking is quiet)
+  Shift (hold)         run: fast but loud
+  Mouse                aim the flashlight
+  Left click (hold)    flashlight
+  Right click / Space  sonar
+  Q                    throw a stone (the sound draws them to it)
+  E (hold)             break the wall in front of you (loud)
+  Esc                  pause (lives, stones left, notes you've found)
+  F11                  fullscreen
+
+
+IF WINDOWS BLOCKS IT
+GEMA.exe isn't digitally signed, so Windows SmartScreen may show
+"Windows protected your PC". Click "More info", then "Run anyway".
+
+GEMA.exe takes a few seconds before its window appears. That's normal.
+
+
+SAVE DATA
+Attempts, deaths, endings, achievements, and your language are saved in
+%USERPROFILE%\\.gema\\save.json. Delete that file to start over.
+
+
+----------------------------------------------------------------------
+
+BAHASA INDONESIA
 
 Game horor psikologis top-down. Di labirin yang gelap total, melihat berarti terdengar.
+Bahasanya bisa diganti di Pengaturan.
 
-
-CARA MAIN
-Jalankan GEMA.exe. Tidak perlu memasang Python.
-
-PAKAI EARPHONE. Setengah dari game ini ada di suaranya, dan arah suara (kiri/kanan)
-adalah informasi penting.
+Jalankan GEMA.exe. Tidak perlu memasang Python. PAKAI EARPHONE.
 
   W A S D              bergerak (jalan pelan)
   Shift (tahan)        lari: cepat tapi berisik
   Mouse                mengarahkan senter
   Klik kiri (tahan)    senter
   Klik kanan / Spasi   sonar
-  Esc                  jeda (ada daftar catatan yang sudah ditemukan)
+  Q                    lempar kerikil (bunyinya menarik mereka ke sana)
+  E (tahan)            hancurkan dinding di depanmu (berisik)
+  Esc                  jeda (sisa nyawa, kerikil, dan catatan yang sudah ditemukan)
   F11                  layar penuh
 
+Kalau Windows SmartScreen menampilkan "Windows protected your PC", klik "More info"
+lalu "Run anyway". GEMA.exe perlu beberapa detik sebelum jendelanya muncul.
 
-KALAU WINDOWS MEMBLOKIR
-GEMA.exe tidak ditandatangani secara digital, jadi Windows SmartScreen bisa menampilkan
-"Windows protected your PC". Klik "More info" lalu "Run anyway".
-
-Saat dibuka, GEMA.exe perlu beberapa detik sebelum jendelanya muncul. Itu normal.
-
-
-DATA SIMPANAN
-Jumlah percobaan, kematian, dan ending disimpan di %USERPROFILE%\\.gema\\save.json.
-Hapus file itu untuk mulai dari nol.
+Data simpanan ada di %USERPROFILE%\\.gema\\save.json. Hapus file itu untuk mulai dari nol.
 """
 
 
@@ -122,7 +152,7 @@ def main():
     zip_path = DIST / f"GEMA-v{__version__}-windows.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         z.write(exe, "GEMA/GEMA.exe")
-        z.writestr("GEMA/BACA-DULU.txt", README.format(version=__version__).replace("\n", "\r\n"))
+        z.writestr("GEMA/README.txt", README.format(version=__version__).replace("\n", "\r\n"))
 
     mb = 1024 * 1024
     print(f"\nSelesai.\n  {exe}  ({exe.stat().st_size / mb:.1f} MB)")

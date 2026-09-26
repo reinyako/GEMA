@@ -172,6 +172,84 @@ def test_watcher_clicks_a_dead_flashlight_now_and_then():
     assert 25 // hi <= clicks <= 25 // lo + 1
 
 
+def test_stone_flies_then_lands_with_a_sound():
+    f = make_floor()
+    left = f.stones_left
+    f.update(1 / 60, InputState(aim=f.player.aim, throw=True))
+    assert f.stones_left == left - 1 and len(f.stones) == 1
+    sources = []
+    for _ in range(int(C.STONE_FLIGHT * 60) + 3):
+        f.update(1 / 60, IDLE)
+        sources += [n.source for n in f.noise.events]
+    assert not f.stones and f.ripples
+    assert "stone" in sources
+    assert any(s[0] == "stone" for s in f.sfx)
+
+
+def test_stone_lures_a_hunting_listener_away():
+    f = make_floor()
+    listener = f.listeners[0]
+    listener.state = HUNT
+    x, y = listener.x + 60, listener.y
+    f.noise.emit(x, y, C.STONE_NOISE, "stone")
+    f.noise.advance()
+    listener.update(1 / 60, f)
+    assert listener.target == (x, y)
+    assert f.run.distractions == 1
+
+
+def _breakable_spot(maze):
+    for cx, cy in maze.cell_tiles():
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            wall, beyond = (cx + dx, cy + dy), (cx + 2 * dx, cy + 2 * dy)
+            inside = 1 <= wall[0] <= maze.w - 2 and 1 <= wall[1] <= maze.h - 2
+            if inside and maze.is_wall(*wall) and not maze.is_wall(*beyond):
+                return (cx, cy), wall, math.atan2(dy, dx)
+    raise AssertionError("tidak ada dinding yang bisa dihancurkan")
+
+
+def test_holding_e_breaks_the_wall_ahead():
+    f = make_floor()
+    f.dev.god = True
+    cell, wall, aim = _breakable_spot(f.maze)
+    f.player.x, f.player.y = tile_center(cell)
+    left = f.breaks_left
+    for _ in range(int(C.BREAK_TIME * 60) - 5):
+        f.update(1 / 60, InputState(aim=aim, break_wall=True))
+    assert f.maze.is_wall(*wall) and f.break_tile == wall
+    f.update(1 / 60, InputState(aim=aim, break_wall=False))   # dilepas: mulai dari nol lagi
+    assert f.break_progress == 0.0
+    for _ in range(int(C.BREAK_TIME * 60) + 2):
+        f.update(1 / 60, InputState(aim=aim, break_wall=True))
+    assert not f.maze.is_wall(*wall)
+    assert wall in f.changed_tiles
+    assert f.breaks_left == left - 1 and f.run.walls_broken == 1
+    assert ("wall_broken",) in f.events
+    assert f.debris and f.debris[0][1] == (round(math.cos(aim)), round(math.sin(aim)))
+
+
+def test_dev_mode_gives_endless_stones_and_walls():
+    f = make_floor()
+    f.dev.infinite_tools = True
+    for _ in range(5):
+        f.update(1 / 60, InputState(aim=f.player.aim, throw=True))
+    assert f.stones_left == f.diff.stones and f.run.stones_thrown == 5
+
+
+def test_outer_walls_cannot_be_broken():
+    f = make_floor()
+    sx, sy = f.start_tile
+    f.player.x, f.player.y = tile_center((sx, sy))
+    outward = math.pi if sx == 1 else 0.0   # titik mulai selalu di pojok, jadi sisi luarnya dinding tepi
+    f.player.aim = outward
+    assert f.break_target() is None
+
+
+def test_no_tools_on_the_final_floor():
+    f = make_floor(number=C.FINAL_FLOOR)
+    assert f.stones_left == 0 and f.breaks_left == 0
+
+
 def test_redup_maze_is_easier_to_see():
     easy, normal = make_floor(difficulty=C.REDUP), make_floor(difficulty=C.GELAP)
     assert easy.sonar.echo_fade > normal.sonar.echo_fade

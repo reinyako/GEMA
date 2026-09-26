@@ -6,7 +6,9 @@ import random
 import pygame
 
 from .. import config as C
+from .. import lang
 from .. import notes
+from ..achievements import record
 from ..audio.soundscape import Soundscape
 from ..render.draw import FloorRenderer
 from ..render.effects import Shake
@@ -41,8 +43,10 @@ class PlayScene:
         self.paused = False
         self.showing_notes = False
         self.showing_dev = False
-        items = ["Lanjut", "Catatan"] + (["Mode dev"] if app.dev.enabled else []) + ["Kembali ke judul"]
-        self.pause_menu = Menu(items, y=190, audio=app.audio)
+        self.pause_actions = ["resume", "notes"] + (["dev"] if app.dev.enabled else []) + ["title"]
+        labels = {"resume": lang.t("resume"), "notes": lang.t("notes"), "dev": lang.t("menu_dev"),
+                  "title": lang.t("to_title")}
+        self.pause_menu = Menu([labels[a] for a in self.pause_actions], y=200, audio=app.audio)
         self.dev_menu = DevMenu(app.dev, app.audio)
         self.note = None
         self.hint = 9.0 if run.floor == 1 else 0.0
@@ -86,8 +90,10 @@ class PlayScene:
             if self.app.dev.enabled and self.state == PLAYING:
                 if ev.key == pygame.K_F5:
                     self.floor.debug_collect_all()
+                    self.run.assisted = True
                 elif ev.key == pygame.K_F6:
                     self.floor.debug_to_exit()
+                    self.run.assisted = True
         self.controller.handle_event(ev)
 
     def _pause_event(self, ev):
@@ -109,14 +115,15 @@ class PlayScene:
         choice = self.pause_menu.handle_event(ev)
         if choice is None:
             return
-        label = self.pause_menu.items[choice]
-        if label == "Lanjut":
+        action = self.pause_actions[choice]
+        if action == "resume":
             self.set_paused(False)
-        elif label == "Catatan":
+        elif action == "notes":
             self.showing_notes = True
-        elif label == "Mode dev":
+        elif action == "dev":
             self.showing_dev = True
-        elif label == "Kembali ke judul":
+        elif action == "title":
+            record(self.app.save, self.run, finished=False)
             self.app.audio.unpause()
             self.app.go_title()
 
@@ -144,6 +151,8 @@ class PlayScene:
             return
 
         f = self.floor
+        if self.app.dev.any_active():
+            self.run.assisted = True
         f.update(dt, self.controller.sample(self))
         for ev in f.events:
             if ev[0] == "note":
@@ -156,7 +165,11 @@ class PlayScene:
             elif ev[0] == "exit":
                 self.state = LEAVING
                 self.timer = 0.0
+            elif ev[0] == "wall_broken":
+                self.shake.add(0.35)
         f.events.clear()
+        if f.break_tile is not None:
+            self.shake.add(dt * 0.35)  # dinding bergetar selama dihancurkan
         if self.state == PLAYING:
             self.soundscape.update(dt, f)
         if self.note is not None:
@@ -194,9 +207,14 @@ class PlayScene:
 
     def _after_death(self):
         run, app = self.run, self.app
+        if run.lives <= 0 and run.difficulty.retry_floor:
+            self._retry_floor()
+            return
         if run.lives <= 0:
+            new = record(app.save, run, finished=False)
+            lines = [lang.t("attempt_over", n=run.attempt)] + [lang.t("new_achievement", name=a.name) for a in new]
             app.switch(InterludeScene(
-                app, [f"Percobaan ke-{run.attempt} berakhir."], then=app.go_title, duration=3.2, size=22,
+                app, lines, then=app.go_title, duration=3.2 + 1.5 * len(new), size=22,
             ))
             return
         self.floor.respawn()
@@ -205,9 +223,21 @@ class PlayScene:
         self.catcher = None
         self.shake.trauma = 0.0
         app.switch(InterludeScene(
-            app, [self.rng.choice(notes.DEATH_WORDS)], then=lambda: app.switch(self),
+            app, [self.rng.choice(notes.death_words())], then=lambda: app.switch(self),
             duration=1.8, lives=run.lives, max_lives=run.difficulty.lives,
         ))
+
+    def _retry_floor(self):
+        """Redup: nyawa habis tidak mengakhiri percobaan. Lantai ini diulang dari awal dengan labirin baru."""
+        run, app = self.run, self.app
+        if self.floor.taken:
+            del run.notes[-self.floor.taken:]   # fragmen lantai ini akan ditemukan lagi
+        run.retries += 1
+        run.floor_retries += 1
+        run.lives = run.difficulty.lives
+        run.battery = C.BATTERY_MAX
+        text = notes.retry_text(run.floor_retries)
+        app.switch(InterludeScene(app, [text], then=lambda: app.go_floor_intro(run), duration=2.4))
 
     def _god_hit(self, catcher):
         """Mode kebal: efek tertangkap tetap muncul supaya bisa dites, tapi tidak mati."""
@@ -225,6 +255,7 @@ class PlayScene:
             self.app.switch(EndingScene(self.app, self.run))
             return
         self.run.floor += 1
+        self.run.floor_retries = 0
         self.app.go_floor_intro(self.run)
 
     # --- gambar ------------------------------------------------------------
@@ -273,9 +304,11 @@ class PlayScene:
     def _draw_hint(self, screen, k):
         fnt = font(14)
         a = 255 * k * 0.8
-        y = C.SCREEN_H - 30 - len(notes.CONTROLS[:5]) * 18
-        for key, what in notes.CONTROLS[:5]:
-            draw_left(screen, f"{key:<18} {what}", fnt, C.COL_TEXT_DIM, 24, y, a)
+        controls = notes.controls()[:7]
+        pad = max(len(key) for key, _ in controls)
+        y = C.SCREEN_H - 30 - len(controls) * 18
+        for key, what in controls:
+            draw_left(screen, f"{key:<{pad}}  {what}", fnt, C.COL_TEXT_DIM, 24, y, a)
             y += 18
 
     def _draw_pause(self, screen):
@@ -288,7 +321,7 @@ class PlayScene:
         if self.showing_dev:
             self.dev_menu.draw(screen)
             return
-        draw_center(screen, "Jeda", font(28), C.COL_TEXT, C.SCREEN_W / 2, 90)
+        draw_center(screen, lang.t("pause"), font(28), C.COL_TEXT, C.SCREEN_W / 2, 90)
         lives = self.run.lives
         max_lives = self.run.difficulty.lives
         gap = 18
@@ -296,21 +329,48 @@ class PlayScene:
         for i in range(max_lives):
             color = C.COL_TEXT if i < lives else (60, 57, 53)
             pygame.draw.circle(screen, color, (int(x0 + i * gap), 146), 4 if i < lives else 3, 0 if i < lives else 1)
+        self._draw_tools(screen, 166)
         self.pause_menu.draw(screen)
         fnt = font(13)
-        y = 190 + len(self.pause_menu.items) * 42 + 30
-        for key, what in notes.CONTROLS:
-            draw_center(screen, f"{key}: {what}", fnt, C.COL_TEXT_DIM, C.SCREEN_W / 2, y)
-            y += 18
+        y = self.pause_menu.y + len(self.pause_menu.items) * 42 + 20
+        controls = notes.controls()
+        half = (len(controls) + 1) // 2
+        for col, x in ((controls[:half], C.SCREEN_W / 2 - 230), (controls[half:], C.SCREEN_W / 2 + 20)):
+            for i, (key, what) in enumerate(col):
+                draw_left(screen, f"{key}: {what}", fnt, C.COL_TEXT_DIM, x, y + i * 18)
+
+    def _draw_tools(self, screen, y):
+        """Sisa kerikil dan dinding yang bisa dihancurkan, sebagai titik seperti nyawa (tanpa angka)."""
+        f = self.floor
+        groups = [(label, left, total) for label, left, total in (
+            (lang.t("tool_stones"), f.stones_left, self.run.difficulty.stones),
+            (lang.t("tool_walls"), f.breaks_left, self.run.difficulty.wall_breaks),
+        ) if total > 0 and not f.rules.final]
+        if not groups:
+            return
+        fnt = font(13)
+        gap = 14
+        widths = [fnt.size(label)[0] + 10 + total * gap for label, _, total in groups]
+        x = C.SCREEN_W / 2 - (sum(widths) + 40 * (len(groups) - 1)) / 2
+        for (label, left, total), w in zip(groups, widths):
+            draw_left(screen, label, fnt, C.COL_TEXT_DIM, x, y - 8)
+            lw = fnt.size(label)[0]
+            for i in range(total):
+                cx = int(x + lw + 10 + i * gap + 4)
+                if i < left:
+                    pygame.draw.circle(screen, C.COL_TEXT_DIM, (cx, y), 3)
+                else:
+                    pygame.draw.circle(screen, (60, 57, 53), (cx, y), 3, 1)
+            x += w + 40
 
     def _draw_notes(self, screen):
-        draw_center(screen, "Catatan", font(24), C.COL_TEXT, C.SCREEN_W / 2, 50)
+        draw_center(screen, lang.t("notes"), font(24), C.COL_TEXT, C.SCREEN_W / 2, 50)
         fnt = font(16, italic=True)
         y = 100
         if not self.run.notes:
-            draw_center(screen, "Belum ada.", fnt, C.COL_TEXT_DIM, C.SCREEN_W / 2, y)
+            draw_center(screen, lang.t("notes_none"), fnt, C.COL_TEXT_DIM, C.SCREEN_W / 2, y)
         for text in self.run.notes:
             for line in wrap(text, fnt, 780):
                 y += draw_center(screen, line, fnt, C.COL_TEXT, C.SCREEN_W / 2, y)
             y += 8
-        draw_center(screen, "Esc: kembali", font(13), C.COL_TEXT_DIM, C.SCREEN_W / 2, C.SCREEN_H - 36)
+        draw_center(screen, lang.t("back_hint"), font(13), C.COL_TEXT_DIM, C.SCREEN_W / 2, C.SCREEN_H - 36)
